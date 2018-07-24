@@ -122,6 +122,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
                 $rights = array_intersect_key($user_rights[$project_id][$user], array_flip($this->user_rights_to_export));
                 $results[] = array_merge(
                     $project, array(
+                        "user" => $user,
                         "rights" => $rights
                     )
                 );
@@ -131,12 +132,24 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
     }
 
 
+    /**
+     * Return array of report_id, report_name, report_fields or other data?
+     * @param $user
+     * @param $project_id
+     */
     function getProjectReports($user,$project_id) {
-
     }
 
 
+    /**
+     * Return the ACTUAL report data
+     * @param $user
+     * @param $project_id
+     * @param $report_id
+     * @return array|bool
+     */
     function getReport($user, $project_id, $report_id) {
+        // Ugly hack of REDCap source functions but ensures that export is compliant with user's permissions
         global $Proj;
         $Proj = new \Project($project_id);
         define(USERID, $user);
