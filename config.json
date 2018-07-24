@@ -1,0 +1,74 @@
+{
+  "name": "Stanford Biocatalyst Link",
+
+  "namespace":"Stanford\\Biocatalyst",
+
+  "description": "A module that links redcap projects to Stanford Biocatalyst",
+
+  "versions": [
+    { "0.1": "Initial Development Version" }
+  ],
+
+  "authors": [
+    {
+      "name": "Andy Martin",
+      "email": "andy123@stanford.edu",
+      "institution": "Stanford University"
+    },
+    {
+      "name": "LeeAnn Yasukawa",
+      "email": "yasukawa@stanford.edu",
+      "institution": "Stanford University"
+    }
+  ],
+
+  "permissions": [
+    "redcap_module_project_enable"
+  ],
+
+  "no-auth-pages": [
+    "service"
+  ],
+
+  "links": {
+    "control-center": [
+      {
+        "name": "BioCatalyst Instructions",
+        "icon": "gear",
+        "url": "instructions.php"
+      }
+    ],
+    "project": [
+    ]
+  },
+
+  "system-settings": [
+    {
+      "key": "biocatalyst-api-token",
+      "name": "<b>This is the specific API token to be used by BioCatalyst.  This is a shared secret and should be kept secure.",
+      "type": "text"
+    },
+    {
+      "key": "ip_whitelist",
+      "name": "IP Whitelist",
+      "type": "sub_settings",
+      "repeatable": true,
+      "sub_settings": [
+        {
+          "key": "ip",
+          "name": "IP address or CIDR notation (e.g. 192.168.123.1/24)",
+          "required": false,
+          "type": "text"
+        }
+      ]
+    }
+  ],
+
+  "project-settings": [
+    {
+      "key": "biocatalyst-enabled",
+      "name": "<b>Enable Stanford Biocatalyst to access reports in this project<b><br/>Only a project admin can enable/disable this feature for a project.  Once enabled, any REDCap user of this project with Data Export rights will be able to access this project's reports from the BioCatalyst application.",
+      "type": "checkbox"
+    }
+  ]
+}
