@@ -1,7 +1,7 @@
 {
   "name": "Stanford Biocatalyst Link",
 
-  "namespace":"Stanford\\Biocatalyst",
+  "namespace":"Stanford\\BioCatalyst",
 
   "description": "A module that links redcap projects to Stanford Biocatalyst",
 

@@ -31,7 +31,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
 
         $this->token = $this->getSystemSetting('biocatalyst-api-token');
 
-        self::log("t". $token, "o". $this->token);
+        $this->log("t". $token, "o". $this->token);
         if(empty($token) || $token != $this->token) {
             return array(
                 "error"=>"Invalid API Token"
@@ -41,9 +41,9 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         // Verify IP Filter
         $ip_filter = $this->getSystemSetting('ip');
 
-        //self::log($ip_filter);
-        //self::log(empty($ip_filter));
-        //self::log(empty($ip_filter[0]));
+        //$this->log($ip_filter);
+        //$this->log(empty($ip_filter));
+        //$this->log(empty($ip_filter[0]));
 
         if (!empty($ip_filter) && !empty($ip_filter[0])) {
             $isValid = false;
@@ -80,7 +80,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         }
 
         $report_id = empty($_POST['report_id']) ? "" : intval($_POST['report_id']);
-        self::log("Request $request / User $user / Project_id $project_id / report_id $report_id");
+        $this->log("Request $request / User $user / Project_id $project_id / report_id $report_id");
 
         // Keep timestamp of start time
         $tsstart = microtime(true);
@@ -96,13 +96,13 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
             }
             if ($result == false) {
                 http_response_code($this->http_code);
-                self::log("Sending back http_code $this->http_code");
+                $this->log("Sending back http_code $this->http_code");
             }
         }
 
-        self::log($result, "RESULT");
+        $this->log($result, "RESULT");
         $duration = round(microtime(true) - $tsstart, 1);
-        self::log("Request took $duration microseconds to complete for user $user");
+        $this->log("Request took $duration microseconds to complete for user $user");
 
         return $result;
     }
@@ -113,7 +113,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
      */
     function getProjectUserRights($user) {
         $projects = $this->getEnabledProjects();
-        //self::log($projects, "PROJECTS");
+        //$this->log($projects, "PROJECTS");
 
         $results = array();
         foreach ($projects as $project) {
@@ -153,7 +153,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
 
         foreach($result_proj["projects"] as $proj) {
             if ($project_id == $proj["project_id"]) {
-                //self::log("User rights " . implode(',',$proj['rights']) . " for project_id $project_id for user $user");
+                //$this->log("User rights " . implode(',',$proj['rights']) . " for project_id $project_id for user $user");
                 if ($proj["rights"]["data_export_tool"] == '1' && $proj["rights"]["reports"] == '1') {
                     $access = true;
                 }
@@ -179,7 +179,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
             return json_encode($response);
         } else {
             $this->http_code = 403;
-            self::log("NOT AUTHORIZED: User $user trying to get report list for project $project_id");
+            $this->log("NOT AUTHORIZED: User $user trying to get report list for project $project_id");
             return false;
         }
     }
@@ -208,7 +208,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
 
         foreach($result_proj["projects"] as $proj) {
             if ($project_id == $proj["project_id"]) {
-                //self::log("User rights " . implode(',',$proj['rights']) . " for project_id $project_id for user $user");
+                //$this->log("User rights " . implode(',',$proj['rights']) . " for project_id $project_id for user $user");
                 if ($proj["rights"]["data_export_tool"] == '1' && $proj["rights"]["reports"] == '1') {
                     $access = true;
                 }
@@ -229,19 +229,19 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         }
 
         if ($access == true && $valid_report == true) {
-            self::log("This is user $user retrieving report $report_id for project $project_id");
+            $this->log("This is user $user retrieving report $report_id for project $project_id");
             $report =  REDCap::getReport($report_id, 'json');
             return $report;
         } else if ($access == false) {
-            self::log("NOT AUTHORIZED: User $user trying to get report $report_id for project $project_id");
+            $this->log("NOT AUTHORIZED: User $user trying to get report $report_id for project $project_id");
             $this->http_code = 403;
             return false;
         } else if ($valid_report == false) {
-            self::log("THIS REPORT DOES NOT BELONG TO THIS PROJECT: User $user trying to get report $report_id for project $project_id");
+            $this->log("THIS REPORT DOES NOT BELONG TO THIS PROJECT: User $user trying to get report $report_id for project $project_id");
             $this->http_code = 404;
             return false;
         } else {
-            self::log("UNKNOWN REPORT ERROR: User $user trying to get report $report_id for project $project_id");
+            $this->log("UNKNOWN REPORT ERROR: User $user trying to get report $report_id for project $project_id");
             $this->http_code = 404;
             return false;
         }
@@ -285,10 +285,28 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         return ($ip_ip_net == $ip_net);
     }
 
-
+/*
     // Log Wrapper
     public static function log() {
         if (class_exists("\Plugin")) call_user_func_array("\Plugin::log", func_get_args());
+    }
+*/
+    function log() {
+        $emLogger = \ExternalModules\ExternalModules::getModuleInstance('em_logger');
+        $emLogger->log($this->PREFIX, func_get_args(), "INFO");
+    }
+
+    function debug() {
+        // Check if debug enabled
+        if ($this->getSystemSetting('enable-system-debug-logging') || $this->getProjectSetting('enable-project-debug-logging')) {
+            $emLogger = \ExternalModules\ExternalModules::getModuleInstance('em_logger');
+            $emLogger->log($this->PREFIX, func_get_args(), "DEBUG");
+        }
+    }
+
+    function error() {
+        $emLogger = \ExternalModules\ExternalModules::getModuleInstance('em_logger');
+        $emLogger->log($this->PREFIX, func_get_args(), "ERROR");
     }
 
 }
