@@ -9,18 +9,32 @@ Two security mechanisms are in place to try and control access to this API - IP 
 
 
 ### Example Syntax
-TODO: The following parameters are valid in the body of the POST
+This module performs the following functions:
+    1) POST request includes:
+            {"token":"<token>", "request": "users", "user": "<sunetid>"}
+       Return includes {"user":"<sunetid>",
+                        "projects":
+                                [{"project_id":"<pid1>",
+                                  "rights":{"data_export_tool":"<0 or 1>", "reports":"<0 or 1>"}}],
+                                [...]}
 
-    email_token: ##RANDOM## (this token is unique to this project)
-    to:          A comma-separated list of valid email addresses (no names)
-    from_name:   Jane Doe
-    from_email:  Jane@doe.com
-    cc:          (optional) comma-separated list of valid emails
-    bcc:         (optional) comma-separated list of valid emails
-    subject:     A Subject
-    body:        A Message Body (<b>html</b> is okay!)
-    record_id:   (optional) a record_id in the project - email will be logged to this record
+    2) POST request includes:
+            {"token":"<token>", "request": "reports", "user": "<sunetid>", "project_id" : "<project_id>"}
+       Return includes {"project_id":"<pid1>",
+                        "reports":{"report_id":"<report_id>", "title":"<title>"},
+                                  {...}]}
 
-The API will return a json object with either `result: true|false` or `error: error message`
+    3) POST request includes:
+            {"token":"<token>", "request": "reports", "user": "<sunetid>", "project_id" : "<project_id>", "report_id":"<report_id>"}
+       Return includes [{"field1":"<value1>",
+                         "field2":"<value2>",
+                                ...         },
+                        {"field1":"<value1>",
+                         "field2":"<value2>",
+                                ...         }]
+
 
 ### Misc
+Contacts for BioCatalyst are:
+    Jessiely Juachon <jessiely@stanford.edu>
+    Rohit K. Gupta <rogupta@stanford.edu>

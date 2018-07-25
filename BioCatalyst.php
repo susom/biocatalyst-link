@@ -16,7 +16,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
     public $token;
 
     public $user_rights_to_export = array('data_export_tool', 'reports'); //, 'data_access_groups');
-
+    private $http_code;
 
     public function __construct()
     {
@@ -41,9 +41,9 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         // Verify IP Filter
         $ip_filter = $this->getSystemSetting('ip');
 
-        self::log($ip_filter);
-        self::log(empty($ip_filter));
-        self::log(empty($ip_filter[0]));
+        //self::log($ip_filter);
+        //self::log(empty($ip_filter));
+        //self::log(empty($ip_filter[0]));
 
         if (!empty($ip_filter) && !empty($ip_filter[0])) {
             $isValid = false;
@@ -80,7 +80,10 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         }
 
         $report_id = empty($_POST['report_id']) ? "" : intval($_POST['report_id']);
-        self::log("$request / $user / $project_id / $report_id");
+        self::log("Request $request / User $user / Project_id $project_id / report_id $report_id");
+
+        // Keep timestamp of start time
+        $tsstart = microtime(true);
 
         if ($request == "users") {
             // Get all projects and the user's rights in those projects for reports
@@ -91,14 +94,15 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
             } else {
                 $result = $this->getReport($user, $project_id, $report_id);
             }
+            if ($result == false) {
+                http_response_code($this->http_code);
+                self::log("Sending back http_code $this->http_code");
+            }
         }
 
-        // if ($result) {
-        //     $project_id = 1; //??
-        //     REDCap::logEvent("BioCatalyst API Delivery", "details","",null,null,$project_id);
-        // }
-
         self::log($result, "RESULT");
+        $duration = round(microtime(true) - $tsstart, 1);
+        self::log("Request took $duration microseconds to complete for user $user");
 
         return $result;
     }
@@ -109,24 +113,25 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
      */
     function getProjectUserRights($user) {
         $projects = $this->getEnabledProjects();
-        self::log($projects, "PROJECTS");
+        //self::log($projects, "PROJECTS");
 
         $results = array();
         foreach ($projects as $project) {
             $project_id = $project['project_id'];
             $user_rights = \UserRights::getPrivileges($project_id,  $user);
-            // self::log($project_id . " - " . json_encode($user_rights));
 
             if (isset($user_rights[$project_id][$user])) {
                 // User has rights - lets filter list to those we want
                 $rights = array_intersect_key($user_rights[$project_id][$user], array_flip($this->user_rights_to_export));
-                $results[] = array_merge(
-                    $project, array(
-                        "user" => $user,
+                $proj_rights[] = array(
+                        "project_id" => $project_id,
                         "rights" => $rights
-                    )
-                );
-            }
+                        );
+                }
+                $results = array(
+                        "user" => $user,
+                        "projects" => $proj_rights
+            );
         }
         return json_encode($results);
     }
@@ -138,6 +143,45 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
      * @param $project_id
      */
     function getProjectReports($user,$project_id) {
+        // Ugly hack of REDCap source functions but ensures that export is compliant with user's permissions
+        global $Proj;
+        $Proj = new \Project($project_id);
+
+        $result = $this->getProjectUserRights($user);
+        $result_proj = json_decode($result,true);
+        $access = false;
+
+        foreach($result_proj["projects"] as $proj) {
+            if ($project_id == $proj["project_id"]) {
+                //self::log("User rights " . implode(',',$proj['rights']) . " for project_id $project_id for user $user");
+                if ($proj["rights"]["data_export_tool"] == '1' && $proj["rights"]["reports"] == '1') {
+                    $access = true;
+                }
+                break;
+            }
+        }
+
+        if ($access == true) {
+            $reports = array();
+            $sql = "select rr.report_id, rr.title
+                    from redcap_external_modules rem
+                    left join redcap_external_module_settings rems on rem.external_module_id = rems.external_module_id
+                    left join redcap_reports rr on rems.project_id = rr.project_id
+                    where rem.directory_prefix = 'biocatalyst_link'
+                    and rems.key = 'biocatalyst-enabled'
+                    and rems.value = 'true'";
+            $q = $this->query($sql);
+            while ($row = db_fetch_assoc($q)) {
+                $reports[] = $row;
+            }
+            $response = array("project_id" => $project_id,
+                              "reports" => $reports);
+            return json_encode($response);
+        } else {
+            $this->http_code = 403;
+            self::log("NOT AUTHORIZED: User $user trying to get report list for project $project_id");
+            return false;
+        }
     }
 
 
@@ -147,13 +191,60 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
      * @param $project_id
      * @param $report_id
      * @return array|bool
+     * @throws
      */
     function getReport($user, $project_id, $report_id) {
         // Ugly hack of REDCap source functions but ensures that export is compliant with user's permissions
         global $Proj;
         $Proj = new \Project($project_id);
-        define(USERID, $user);
-        return REDCap::getReport($report_id, 'json');
+//        define(USERID, $user);
+
+        // The above hack for setting user doesn't seem to be working so check that this user
+        // has the proper rights for retrieving this report
+        $result = $this->getProjectUserRights($user);
+        $result_proj = json_decode($result,true);
+        $access = false;
+        $valid_report = false;
+
+        foreach($result_proj["projects"] as $proj) {
+            if ($project_id == $proj["project_id"]) {
+                //self::log("User rights " . implode(',',$proj['rights']) . " for project_id $project_id for user $user");
+                if ($proj["rights"]["data_export_tool"] == '1' && $proj["rights"]["reports"] == '1') {
+                    $access = true;
+                }
+                break;
+            }
+        }
+
+        // This user has the correct rights now check to make sure the given report_id belongs to this project_id
+        if ($access == true) {
+            $reports =  $this->getProjectReports($user,$project_id);
+            $proj_reports = json_decode($reports, true);
+            foreach($proj_reports["reports"] as $report) {
+                if ($report["report_id"] == $report_id) {
+                    $valid_report = true;
+                    break;
+                }
+            }
+        }
+
+        if ($access == true && $valid_report == true) {
+            self::log("This is user $user retrieving report $report_id for project $project_id");
+            $report =  REDCap::getReport($report_id, 'json');
+            return $report;
+        } else if ($access == false) {
+            self::log("NOT AUTHORIZED: User $user trying to get report $report_id for project $project_id");
+            $this->http_code = 403;
+            return false;
+        } else if ($valid_report == false) {
+            self::log("THIS REPORT DOES NOT BELONG TO THIS PROJECT: User $user trying to get report $report_id for project $project_id");
+            $this->http_code = 404;
+            return false;
+        } else {
+            self::log("UNKNOWN REPORT ERROR: User $user trying to get report $report_id for project $project_id");
+            $this->http_code = 404;
+            return false;
+        }
     }
 
 
