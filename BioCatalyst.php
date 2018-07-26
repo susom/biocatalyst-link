@@ -16,13 +16,13 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
     public $token;
 
     public $user_rights_to_export = array('data_export_tool', 'reports'); //, 'data_access_groups');
-    private $http_code;
+    private $http_code = null;
+    private $error_msg = null;
 
     public function __construct()
     {
         parent::__construct();
     }
-
 
     public function parseRequest() {
 
@@ -33,9 +33,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
 
         $this->log("t". $token, "o". $this->token);
         if(empty($token) || $token != $this->token) {
-            return array(
-                "error"=>"Invalid API Token"
-            );
+            return $this->packageError("Invalid API Token");
         }
 
         // Verify IP Filter
@@ -53,30 +51,24 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
                     break;
                 }
             }
-            if (!$isValid) return array(
-                "error"=> "invalid source IP"
-            );
+            if (!$isValid) {
+                 return $this->packageError("Invalid source IP");
+            }
         }
 
         $request = empty($_POST['request']) ? null : $_POST['request'];
         if (!in_array($request, array("users", "reports"))) {
-            return array(
-                "error" => "invalid request"
-            );
+            return $this->packageError("Invalid request");
         }
 
         $user = empty($_POST['user']) ? null : strtolower( $_POST['user'] );
         if (empty($user)) {
-            return array(
-                "error" => "missing required user"
-            );
+            return $this->packageError("Missing required user");
         }
 
         $project_id = empty($_POST['project_id']) ? "" : intval($_POST['project_id']);
         if ($request == "reports" && empty($project_id)) {
-            return array(
-                "error" => "project_id required"
-            );
+            return $this->packageError("Project_id required");
         }
 
         $report_id = empty($_POST['report_id']) ? "" : intval($_POST['report_id']);
@@ -94,17 +86,20 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
             } else {
                 $result = $this->getReport($user, $project_id, $report_id);
             }
-            if ($result == false) {
-                http_response_code($this->http_code);
-                $this->log("Sending back http_code $this->http_code");
-            }
         }
 
-        $this->log($result, "RESULT");
-        $duration = round(microtime(true) - $tsstart, 1);
-        $this->log("Request took $duration microseconds to complete for user $user");
+        $duration = round((microtime(true) - $tsstart) * 1000, 1);
+        $this->log(array(
+            "duration" => $duration,
+            "user" => $user,
+            "result" => $result
+        ));
 
-        return $result;
+        if ($result == false) {
+            return $this->packageError($this->error_msg);
+        } else {
+            return $result;
+        }
     }
 
     /**
@@ -113,7 +108,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
      */
     function getProjectUserRights($user) {
         $projects = $this->getEnabledProjects();
-        //$this->log($projects, "PROJECTS");
+        $this->log($projects);
 
         $results = array();
         foreach ($projects as $project) {
@@ -141,6 +136,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
      * Return array of report_id, report_name, report_fields or other data?
      * @param $user
      * @param $project_id
+     * @return bool|string
      */
     function getProjectReports($user,$project_id) {
         // Ugly hack of REDCap source functions but ensures that export is compliant with user's permissions
@@ -179,7 +175,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
             return json_encode($response);
         } else {
             $this->http_code = 403;
-            $this->log("NOT AUTHORIZED: User $user trying to get report list for project $project_id");
+            $this->error_msg = "NOT AUTHORIZED: User $user trying to get report list for project $project_id";
             return false;
         }
     }
@@ -233,20 +229,17 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
             $report =  REDCap::getReport($report_id, 'json');
             return $report;
         } else if ($access == false) {
-            $this->log("NOT AUTHORIZED: User $user trying to get report $report_id for project $project_id");
+            $this->error_msg = "NOT AUTHORIZED: User $user trying to get report $report_id for project $project_id";
             $this->http_code = 403;
             return false;
         } else if ($valid_report == false) {
-            $this->log("THIS REPORT DOES NOT BELONG TO THIS PROJECT: User $user trying to get report $report_id for project $project_id");
-            $this->http_code = 404;
+            $this->error_msg = "THIS REPORT DOES NOT BELONG TO THIS PROJECT: User $user trying to get report $report_id for project $project_id";
             return false;
         } else {
-            $this->log("UNKNOWN REPORT ERROR: User $user trying to get report $report_id for project $project_id");
-            $this->http_code = 404;
+            $this->error_msg = "UNKNOWN REPORT ERROR: User $user trying to get report $report_id for project $project_id";
             return false;
         }
     }
-
 
     /**
      * Return array of projects with all project metadata where biocatalyst is enabled
@@ -285,12 +278,24 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         return ($ip_ip_net == $ip_net);
     }
 
-/*
-    // Log Wrapper
-    public static function log() {
-        if (class_exists("\Plugin")) call_user_func_array("\Plugin::log", func_get_args());
+    /*
+     * This function gets called when an error occurs and we need to do cleanup
+     * Set http_code to indicate an error.  404 will be used as a default unless another one is specified
+     * Log the error and return
+     */
+    function packageError($errorString) {
+        $jsonString = json_encode(array("error" => $errorString));
+        if (is_null($this->http_code)) {
+            http_response_code(404);
+        } else {
+            http_response_code($this->http_code);
+        }
+
+        $this->error($errorString);
+        return $jsonString;
     }
-*/
+
+
     function log() {
         $emLogger = \ExternalModules\ExternalModules::getModuleInstance('em_logger');
         $emLogger->log($this->PREFIX, func_get_args(), "INFO");
