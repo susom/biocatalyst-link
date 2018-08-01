@@ -26,6 +26,12 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
 
     public function parseRequest() {
 
+        // In case the request didn't come over directly in the POST
+        if (empty($_POST)) {
+            // Retrieve request from user
+            $_POST = json_decode(file_get_contents('php://input'), true);
+        }
+
         // Verify Token
         $token = empty($_POST['token']) ? null : $_POST['token'];
 
