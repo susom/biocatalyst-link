@@ -196,9 +196,10 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
      */
     function getReport($user, $project_id, $report_id) {
         // Ugly hack of REDCap source functions but ensures that export is compliant with user's permissions
-        global $Proj;
+        global $Proj, $user_rights, $isAjax;
+        $isAjax = true;
         $Proj = new \Project($project_id);
-//        define(USERID, $user);
+        //define(USERID, $user);
 
         // The above hack for setting user doesn't seem to be working so check that this user
         // has the proper rights for retrieving this report
