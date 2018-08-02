@@ -15,7 +15,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
 
     public $token;
 
-    public $user_rights_to_export = array('data_export_tool', 'reports'); //, 'data_access_groups');
+    public $user_rights_to_export = array('data_export_tool', 'reports', 'export_rights'); //, 'data_access_groups');
     private $http_code = null;
     private $error_msg = null;
 
@@ -204,8 +204,8 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         // has the proper rights for retrieving this report
         $result = $this->getProjectUserRights($user);
         $result_proj = json_decode($result,true);
-        $access = false;
         $valid_report = false;
+        $access = false;
 
         $user_rights = false;
         foreach($result_proj["projects"] as $proj) {
@@ -215,30 +215,22 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
             }
         }
 
+        $this->log("User rights: " . json_encode($user_rights));
         //$this->log("User rights " . implode(',',$proj['rights']) . " for project_id $project_id for user $user");
-        if ($user_rights["data_export_tool"] > '0' && $user_rights["reports"] == '1' && $user_rights["export_rights"] <> 0) {
+        if ($user_rights["data_export_tool"] > '0'
+            && $user_rights["reports"] == '1') {
+
+            $access = true;
             // This user has the correct rights now check to make sure the given report_id belongs to this project_id
-            if ($access == true) {
-                $reports =  $this->getProjectReports($user,$project_id);
-                $proj_reports = json_decode($reports, true);
-                foreach($proj_reports["reports"] as $report) {
-                    if ($report["report_id"] == $report_id) {
-                        $valid_report = true;
-                        break;
-                    }
+            $reports =  $this->getProjectReports($user,$project_id);
+            $proj_reports = json_decode($reports, true);
+            foreach($proj_reports["reports"] as $report) {
+                if ($report["report_id"] == $report_id) {
+                    $valid_report = true;
+                    break;
                 }
             }
         }
-
-        // Keep timestamp of start time
-        $tsstart = microtime(true);
-
-        $duration = round((microtime(true) - $tsstart) * 1000, 1);
-        $this->log(array(
-            "status" => "Only retrieving report time",
-            "duration" => $duration,
-            "user" => $user
-        ));
 
         if ($valid_report == true) {
             $this->log("This is user $user retrieving report $report_id for project $project_id");
