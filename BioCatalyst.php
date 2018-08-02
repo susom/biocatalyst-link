@@ -97,8 +97,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         $duration = round((microtime(true) - $tsstart) * 1000, 1);
         $this->log(array(
             "duration" => $duration,
-            "user" => $user,
-            "result" => $result
+            "user" => $user
         ));
 
         if ($result == false) {
@@ -208,31 +207,57 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         $access = false;
         $valid_report = false;
 
+        $user_rights = false;
         foreach($result_proj["projects"] as $proj) {
             if ($project_id == $proj["project_id"]) {
-                //$this->log("User rights " . implode(',',$proj['rights']) . " for project_id $project_id for user $user");
-                if ($proj["rights"]["data_export_tool"] == '1' && $proj["rights"]["reports"] == '1') {
-                    $access = true;
-                }
+                $user_rights=$proj["rights"];
                 break;
             }
         }
 
-        // This user has the correct rights now check to make sure the given report_id belongs to this project_id
-        if ($access == true) {
-            $reports =  $this->getProjectReports($user,$project_id);
-            $proj_reports = json_decode($reports, true);
-            foreach($proj_reports["reports"] as $report) {
-                if ($report["report_id"] == $report_id) {
-                    $valid_report = true;
-                    break;
+        //$this->log("User rights " . implode(',',$proj['rights']) . " for project_id $project_id for user $user");
+        if ($user_rights["data_export_tool"] > '0' && $user_rights["reports"] == '1' && $user_rights["export_rights"] <> 0) {
+            // This user has the correct rights now check to make sure the given report_id belongs to this project_id
+            if ($access == true) {
+                $reports =  $this->getProjectReports($user,$project_id);
+                $proj_reports = json_decode($reports, true);
+                foreach($proj_reports["reports"] as $report) {
+                    if ($report["report_id"] == $report_id) {
+                        $valid_report = true;
+                        break;
+                    }
                 }
             }
         }
 
-        if ($access == true && $valid_report == true) {
+        // Keep timestamp of start time
+        $tsstart = microtime(true);
+
+        $duration = round((microtime(true) - $tsstart) * 1000, 1);
+        $this->log(array(
+            "status" => "Only retrieving report time",
+            "duration" => $duration,
+            "user" => $user
+        ));
+
+        if ($valid_report == true) {
             $this->log("This is user $user retrieving report $report_id for project $project_id");
-            $report =  REDCap::getReport($report_id, 'json');
+            //$report =  REDCap::getReport($report_id, 'json');
+// Does user have De-ID rights?
+            $deidRights = ($user_rights['data_export_tool'] == '2');
+// De-Identification settings
+            $hashRecordID = ($deidRights);
+            $removeIdentifierFields = ($user_rights['data_export_tool'] == '3' || $deidRights);
+            $removeUnvalidatedTextFields = ($deidRights);
+            $removeNotesFields = ($deidRights);
+            $removeDateFields = ($deidRights);
+            $report = \DataExport::doReport($report_id, 'export', 'json', false, false,
+                false, false, $removeIdentifierFields, $hashRecordID, $removeUnvalidatedTextFields,
+                $removeNotesFields, $removeDateFields, false, false, array(), array(), false, false);
+
+// Send the response to the requestor
+//            RestUtility::sendResponse(200, $content, $format);
+            $this->log("Report obtained $report_id");
             return $report;
         } else if ($access == false) {
             $this->error_msg = "NOT AUTHORIZED: User $user trying to get report $report_id for project $project_id";
