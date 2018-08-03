@@ -15,7 +15,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
 
     public $token;
 
-    public $user_rights_to_export = array('data_export_tool', 'reports', 'export_rights'); //, 'data_access_groups');
+    public $user_rights_to_export = array('data_export_tool', 'reports'); //, 'data_access_groups');
     private $http_code = null;
     private $error_msg = null;
 
@@ -103,6 +103,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         if ($result == false) {
             return $this->packageError($this->error_msg);
         } else {
+            header("Context-type: application/json");
             return $result;
         }
     }
@@ -144,25 +145,12 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
      * @return bool|string
      */
     function getProjectReports($user,$project_id) {
-        // Ugly hack of REDCap source functions but ensures that export is compliant with user's permissions
-        global $Proj;
-        $Proj = new \Project($project_id);
 
-        $result = $this->getProjectUserRights($user);
-        $result_proj = json_decode($result,true);
-        $access = false;
+        // Retrieve user rights
+        $user_rights = \UserRights::getPrivileges($project_id,  $user);
+        if ($user_rights[$project_id][$user]["data_export_tool"] > '0' && $user_rights[$project_id][$user]["reports"] == '1') {
 
-        foreach($result_proj["projects"] as $proj) {
-            if ($project_id == $proj["project_id"]) {
-                //$this->log("User rights " . implode(',',$proj['rights']) . " for project_id $project_id for user $user");
-                if ($proj["rights"]["data_export_tool"] == '1' && $proj["rights"]["reports"] == '1') {
-                    $access = true;
-                }
-                break;
-            }
-        }
-
-        if ($access == true) {
+            // If this person has export and reports rights, find the report ids for this project
             $reports = array();
             $sql = "select rr.report_id, rr.title
                     from redcap_external_modules rem
@@ -175,6 +163,8 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
             while ($row = db_fetch_assoc($q)) {
                 $reports[] = $row;
             }
+
+            // Send back the list of report_ids that this person has access to.
             $response = array("project_id" => $project_id,
                               "reports" => $reports);
             return json_encode($response);
@@ -195,72 +185,54 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
      * @throws
      */
     function getReport($user, $project_id, $report_id) {
-        // Ugly hack of REDCap source functions but ensures that export is compliant with user's permissions
-        global $Proj, $user_rights, $isAjax;
-        $isAjax = true;
-        $Proj = new \Project($project_id);
-        //define(USERID, $user);
+        global $token;
 
-        // The above hack for setting user doesn't seem to be working so check that this user
-        // has the proper rights for retrieving this report
-        $result = $this->getProjectUserRights($user);
-        $result_proj = json_decode($result,true);
-        $valid_report = false;
-        $access = false;
+        // Get user rights for this project for this user
+        $user_rights = \UserRights::getPrivileges($project_id,  $user);
 
-        //$user_rights = false;
-        foreach($result_proj["projects"] as $proj) {
-            if ($project_id == $proj["project_id"]) {
-                $user_rights=$proj["rights"];
-                break;
+        // Make sure this user has at least export and report privileges
+        if ($user_rights[$project_id][$user]["data_export_tool"] > '0' && $user_rights[$project_id][$user]["reports"] == '1') {
+
+            // Check to make sure this report belongs to this project
+            $valid_report = $this->checkReportinProject($project_id, $report_id);
+            if ($valid_report == false) {
+                return false;
             }
-        }
 
-        $this->log("User rights: " . json_encode($user_rights));
-        //$this->log("User rights " . implode(',',$proj['rights']) . " for project_id $project_id for user $user");
-        if ($user_rights["data_export_tool"] > '0'
-            && $user_rights["reports"] == '1') {
+            $url = $this->getSystemSetting('biocatalyst-report-url') . $project_id;
+            $body = array("report_id"   => $report_id,
+                          "token"       => $this->token);
 
-            $access = true;
-            // This user has the correct rights now check to make sure the given report_id belongs to this project_id
-            $reports =  $this->getProjectReports($user,$project_id);
-            $proj_reports = json_decode($reports, true);
-            foreach($proj_reports["reports"] as $report) {
-                if ($report["report_id"] == $report_id) {
-                    $valid_report = true;
-                    break;
-                }
+            $report = http_post($url, $body, $timeout=10, 'application/json', "", null);
+            if ($report == false) {
+                $this->error_msg = "COULD NOT RETRIEVE REPORT: User $user trying to get report $report_id for project $project_id";
+                $this->http_code = 403;
             }
-        }
-
-        if ($valid_report == true) {
-            $this->log("This is user $user retrieving report $report_id for project $project_id");
-            //$report =  REDCap::getReport($report_id, 'json');
-// Does user have De-ID rights?
-            $deidRights = ($user_rights['data_export_tool'] == '2');
-// De-Identification settings
-            $hashRecordID = ($deidRights);
-            $removeIdentifierFields = ($user_rights['data_export_tool'] == '3' || $deidRights);
-            $removeUnvalidatedTextFields = ($deidRights);
-            $removeNotesFields = ($deidRights);
-            $removeDateFields = ($deidRights);
-            $report = \DataExport::doReport($report_id, 'export', 'json', false, false,
-                false, false, $removeIdentifierFields, $hashRecordID, $removeUnvalidatedTextFields,
-                $removeNotesFields, $removeDateFields, false, false, array(), array(), false, false);
-
-// Send the response to the requestor
-//            RestUtility::sendResponse(200, $content, $format);
-            $this->log("Report obtained $report_id");
             return $report;
-        } else if ($access == false) {
+        } else {
             $this->error_msg = "NOT AUTHORIZED: User $user trying to get report $report_id for project $project_id";
             $this->http_code = 403;
             return false;
-        } else if ($valid_report == false) {
-            $this->error_msg = "THIS REPORT DOES NOT BELONG TO THIS PROJECT: User $user trying to get report $report_id for project $project_id";
-            return false;
+        }
+    }
+
+    /*
+     * Check to make sure this report belongs to this project before retrieving report
+     */
+    function checkReportinProject ($project_id, $report_id)
+    {
+        // Make sure this report_id belongs to this project_id otherwise we don't get
+        // a nice message returned
+        $sql = "select count(1) from redcap_reports
+                  where project_id = $project_id and report_id = $report_id";
+
+        $q = $this->query($sql);
+        $num_reports = db_fetch_assoc($q);
+        if ($num_reports["count(1)"] == 1) {
+            return true;
         } else {
-            $this->error_msg = "UNKNOWN REPORT ERROR: User $user trying to get report $report_id for project $project_id";
+            $this->error_msg = "Report $report_id not valid for Project $project_id";
+            $this->http_code = 404;
             return false;
         }
     }
