@@ -208,7 +208,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         $valid_report = false;
         $access = false;
 
-        $user_rights = false;
+        //$user_rights = false;
         foreach($result_proj["projects"] as $proj) {
             if ($project_id == $proj["project_id"]) {
                 $user_rights=$proj["rights"];
