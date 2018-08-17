@@ -37,13 +37,13 @@ $tsstart = microtime(true);
 $result =  REDCap::getReport($report_id, 'json');
 
 $duration = round((microtime(true) - $tsstart) * 1000, 1);
-$bio->log("Report retrieval time: " . json_encode(array(
+$bio->emLog("Report retrieval time: " . json_encode(array(
     "duration" => $duration,
     "report_id" => $report_id))
 );
 
 if ($result == false) {
-    $bio->log("Error returned from REDCap::getReport: " . $result);
+    $bio->emLog("Error returned from REDCap::getReport: " . $result);
     $error = array("error" => "$result");
     $result = json_encode($error);
 }

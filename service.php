@@ -2,7 +2,7 @@
 namespace Stanford\BioCatalyst;
 /** @var \Stanford\BioCatalyst\BioCatalyst $module */
 
-echo $module->log($_REQUEST, "Incoming Request");
+echo $module->emLog($_REQUEST, "Incoming Request");
 
 
 $result = $module->parseRequest(); //"foo";

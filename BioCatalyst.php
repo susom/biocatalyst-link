@@ -37,7 +37,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
 
         $this->token = $this->getSystemSetting('biocatalyst-api-token');
 
-        $this->log("t". $token, "o". $this->token);
+        $this->emLog("t". $token, "o". $this->token);
         if(empty($token) || $token != $this->token) {
             return $this->packageError("Invalid API Token");
         }
@@ -78,7 +78,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         }
 
         $report_id = empty($_POST['report_id']) ? "" : intval($_POST['report_id']);
-        $this->log("Request $request / User $user / Project_id $project_id / report_id $report_id");
+        $this->emLog("Request $request / User $user / Project_id $project_id / report_id $report_id");
 
         // Keep timestamp of start time
         $tsstart = microtime(true);
@@ -95,7 +95,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         }
 
         $duration = round((microtime(true) - $tsstart) * 1000, 1);
-        $this->log(array(
+        $this->emLog(array(
             "duration" => $duration,
             "user" => $user
         ));
@@ -114,7 +114,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
      */
     function getProjectUserRights($user) {
         $projects = $this->getEnabledProjects();
-        $this->log($projects);
+        $this->emLog($projects);
 
         $results = array();
         foreach ($projects as $project) {
@@ -287,17 +287,17 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
             http_response_code($this->http_code);
         }
 
-        $this->error($errorString);
+        $this->emError($errorString);
         return $jsonString;
     }
 
 
-    function log() {
+    function emLog() {
         $emLogger = \ExternalModules\ExternalModules::getModuleInstance('em_logger');
         $emLogger->log($this->PREFIX, func_get_args(), "INFO");
     }
 
-    function debug() {
+    function emDebug() {
         // Check if debug enabled
         if ($this->getSystemSetting('enable-system-debug-logging') || $this->getProjectSetting('enable-project-debug-logging')) {
             $emLogger = \ExternalModules\ExternalModules::getModuleInstance('em_logger');
@@ -305,7 +305,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         }
     }
 
-    function error() {
+    function emError() {
         $emLogger = \ExternalModules\ExternalModules::getModuleInstance('em_logger');
         $emLogger->log($this->PREFIX, func_get_args(), "ERROR");
     }
