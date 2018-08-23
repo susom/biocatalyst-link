@@ -1,9 +1,8 @@
 <?php
 namespace Stanford\BioCatalyst;
+/** @var \Stanford\BioCatalyst\BioCatalyst $module */
 
 use REDCap;
-use ExternalModules\ExternalModules;
-
 
 /**
  * Class BioCatalyst
@@ -12,7 +11,6 @@ use ExternalModules\ExternalModules;
  */
 class BioCatalyst extends \ExternalModules\AbstractExternalModule
 {
-
     public $token;
 
     public $user_rights_to_export = array('data_export_tool', 'reports'); //, 'data_access_groups');
@@ -83,6 +81,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         // Keep timestamp of start time
         $tsstart = microtime(true);
 
+        $result = array();
         if ($request == "users") {
             // Get all projects and the user's rights in those projects for reports
             $result = $this->getProjectUserRights($user);
@@ -119,13 +118,16 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         $results = array();
         foreach ($projects as $project) {
             $project_id = $project['project_id'];
+            $project_title = $project['app_title'];
             $user_rights = \UserRights::getPrivileges($project_id,  $user);
 
+            $proj_rights = array();
             if (isset($user_rights[$project_id][$user])) {
                 // User has rights - lets filter list to those we want
                 $rights = array_intersect_key($user_rights[$project_id][$user], array_flip($this->user_rights_to_export));
                 $proj_rights[] = array(
                         "project_id" => $project_id,
+                        "project_title" => $project_title,
                         "rights" => $rights
                         );
                 }
@@ -242,7 +244,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
      */
     function getEnabledProjects() {
         $projects = array();
-        $sql = "select rp.project_id, rp.project_name
+        $sql = "select rp.project_id, rp.app_title
           from redcap_external_modules rem
           left join redcap_external_module_settings rems on rem.external_module_id = rems.external_module_id
           left join redcap_projects rp on rems.project_id = rp.project_id

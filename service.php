@@ -4,7 +4,6 @@ namespace Stanford\BioCatalyst;
 
 echo $module->emLog($_REQUEST, "Incoming Request");
 
-
 $result = $module->parseRequest(); //"foo";
 
 

@@ -2,9 +2,7 @@
 namespace Stanford\BioCatalyst;
 /** @var \Stanford\BioCatalyst\BioCatalyst $module **/
 
-
 use REDCap;
-use ExternalModules\ExternalModules;
 
 /**
  * BioCatalystReports
@@ -22,8 +20,6 @@ if (empty($_POST)) {
 $token = empty($_POST['token']) ? null : $_POST['token'];
 $report_id = empty($_POST['report_id']) ? "" : intval($_POST['report_id']);
 
-$bio = new BioCatalyst();
-
 $check_token = $module->getSystemSetting('biocatalyst-api-token');
 if ($token <> $check_token) {
     $error = array("error" => "Invalid token");
@@ -37,15 +33,15 @@ $tsstart = microtime(true);
 $result =  REDCap::getReport($report_id, 'json');
 
 $duration = round((microtime(true) - $tsstart) * 1000, 1);
-$bio->emLog("Report retrieval time: " . json_encode(array(
+$module->emLog("Report retrieval time: " . json_encode(array(
     "duration" => $duration,
     "report_id" => $report_id))
 );
 
 if ($result == false) {
-    $bio->emLog("Error returned from REDCap::getReport: " . $result);
-    $error = array("error" => "$result");
-    $result = json_encode($error);
+    $msg = "Error returned from REDCap::getReport.";
+    $module->emError($msg);
+    $result = json_encode(array("error" => $msg));
 }
 
 header("Context-type: application/json");
