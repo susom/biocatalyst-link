@@ -119,23 +119,24 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         foreach ($projects as $project) {
             $project_id = $project['project_id'];
             $project_title = $project['app_title'];
-            $user_rights = \UserRights::getPrivileges($project_id,  $user);
+            $user_rights = \UserRights::getPrivileges($project_id, $user);
 
             $proj_rights = array();
             if (isset($user_rights[$project_id][$user])) {
                 // User has rights - lets filter list to those we want
                 $rights = array_intersect_key($user_rights[$project_id][$user], array_flip($this->user_rights_to_export));
                 $proj_rights[] = array(
-                        "project_id" => $project_id,
-                        "project_title" => $project_title,
-                        "rights" => $rights
-                        );
-                }
-                $results = array(
-                        "user" => $user,
-                        "projects" => $proj_rights
-            );
+                    "project_id" => $project_id,
+                    "project_title" => $project_title,
+                    "rights" => $rights
+                );
+                $results[] = array(
+                    "user" => $user,
+                    "projects" => $proj_rights
+                );
+            }
         }
+
         return json_encode($results);
     }
 
