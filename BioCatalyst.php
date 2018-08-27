@@ -83,8 +83,15 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
 
         $result = array();
         if ($request == "users") {
-            // Get all projects and the user's rights in those projects for reports
-            $result = $this->getProjectUserRights($user);
+            // There may be a comma separated list of users. Split the list and loop over each user
+            $user_list = explode(',', $user);
+            $complete_list = array();
+            foreach ($user_list as $key) {
+                $this->emLog("user: " . $key);
+                // Get all projects and the user's rights in those projects for reports
+                $complete_list[] = $this->getProjectUserRights($key);
+            }
+            $result = json_encode($complete_list);
         } elseif ($request == "reports") {
             if (empty($report_id)) {
                 $result = $this->getProjectReports($user, $project_id);
@@ -113,15 +120,15 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
      */
     function getProjectUserRights($user) {
         $projects = $this->getEnabledProjects();
-        $this->emLog($projects);
+        $this->emLog("Enabled projects: " . $projects . ", user " . $user);
 
         $results = array();
+        $proj_rights = array();
         foreach ($projects as $project) {
             $project_id = $project['project_id'];
             $project_title = $project['app_title'];
             $user_rights = \UserRights::getPrivileges($project_id, $user);
 
-            $proj_rights = array();
             if (isset($user_rights[$project_id][$user])) {
                 // User has rights - lets filter list to those we want
                 $rights = array_intersect_key($user_rights[$project_id][$user], array_flip($this->user_rights_to_export));
@@ -130,14 +137,15 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
                     "project_title" => $project_title,
                     "rights" => $rights
                 );
-                $results[] = array(
-                    "user" => $user,
-                    "projects" => $proj_rights
-                );
             }
         }
 
-        return json_encode($results);
+        $results = array(
+            "user" => $user,
+            "projects" => $proj_rights
+        );
+
+        return $results;
     }
 
 
