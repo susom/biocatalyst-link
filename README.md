@@ -11,12 +11,42 @@ Two security mechanisms are in place to try and control access to this API - IP 
 ### Example Syntax
 This module performs the following functions:
     1) POST request includes:
-            {"token":"<token>", "request": "users", "user": "<sunetid>"}
-       Return includes {"user":"<sunetid>",
-                        "projects":
-                                [{"project_id":"<pid1>",
-                                  "rights":{"data_export_tool":"<0 or 1>", "reports":"<0 or 1>"}}],
-                                [...]}
+```json
+{"token":"<token>", "request": "users", "user": "<sunetid>,<sunetid>"}
+```
+
+Return includes:
+
+```json
+[
+  {
+    "user":"<sunetid>",
+    "projects": [
+      {
+        "project_id": "3049",
+        "project_title": "Test Playground",
+        "rights": {
+          "data_export_tool": "1",
+           "reports": "1"
+        }
+      },
+      {
+        "project_id": "xxxx",
+        "project_title": "Project 2",
+        "rights": {
+          "data_export_tool": "1",
+          "reports": "1"
+        }
+    ]
+  },
+  {
+    "user2": "sunetid2",
+    "projects": [
+      ...
+    ]
+  }
+]
+```
 
     2) POST request includes:
             {"token":"<token>", "request": "reports", "user": "<sunetid>", "project_id" : "<project_id>"}
