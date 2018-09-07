@@ -10,6 +10,8 @@ use REDCap;
  * @package Stanford\BioCatalyst
  */
 
+$module->emDebug("POST ",$_POST);
+
 // In case the request didn't come over directly in the POST
 if (empty($_POST)) {
     // Retrieve request from user
@@ -31,6 +33,8 @@ $tsstart = microtime(true);
 
 // Retrieve the report
 $result =  REDCap::getReport($report_id, 'json');
+
+$module->emDebug("getReport for ".$report_id, $result);
 
 $duration = round((microtime(true) - $tsstart) * 1000, 1);
 $module->emLog("Report retrieval time: " . json_encode(array(
