@@ -25,6 +25,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
 
     public function parseRequest() {
 
+        $this->emLog("In parse");
         // In case the request didn't come over directly in the POST
         if (empty($_POST)) {
             // Retrieve request from user
@@ -100,7 +101,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         $duration = round((microtime(true) - $tsstart) * 1000, 1);
         $this->emLog(array(
             "duration" => $duration,
-            "user" => $user
+            "user" => $users
         ));
 
         if ($result == false) {
@@ -201,6 +202,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
      */
     function getReport($project_id, $user, $report_id) {
 
+        $this->emLog("In getReport");
         // Get user rights for this project for this user
         $user_rights = UserRights::getPrivileges($project_id,  $user);
 
@@ -225,7 +227,8 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
             $body = array("report_id"   => $report_id,
                           "token"       => $this->token);
 
-            $report = http_post($url, $body, $timeout=10, 'application/json', "", null);
+            //$report = http_post($url, $body, $timeout=10, 'application/json', "", null);
+            $report = $this->http_request("POST", $url, null, $body);
             if ($report == false) {
                 $this->error_msg = "COULD NOT RETRIEVE REPORT: User $user trying to get report $report_id for project $project_id";
                 $this->http_code = 403;
@@ -339,6 +342,44 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
     function emError() {
         $emLogger = \ExternalModules\ExternalModules::getModuleInstance('em_logger');
         $emLogger->emLog($this->PREFIX, func_get_args(), "ERROR");
+    }
+
+
+    function http_request($type, $url, $header, $body=null)
+    {
+        global $module;
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_AUTOREFERER, true);
+        curl_setopt($ch, CURLOPT_MAXREDIRS, 10);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        if ($type == "GET") {
+            curl_setopt($ch, CURLOPT_HTTPGET, true);
+        } else if ($type == "POST") {
+            curl_setopt($ch, CURLOPT_POST, true);
+        } else {
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $type);
+        }
+        if (!is_null($body) and !empty($body)) {
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+        }
+        if (!is_null($header) and !empty($header)) {
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
+        }
+
+        $response = curl_exec($ch);
+        $error = curl_error($ch);
+        $info = curl_getinfo($ch);
+        curl_close($ch);
+
+        if (!empty($error) or ($info["http_code"] !== 200)) {
+            $module->emLog("Curl returned output: " . $response);
+            $module->emLog( "Curl returned error: " . $error);
+            $module->emLog("Curl info: " . json_encode($info));
+            return false;
+        } else {
+            return $response;
+        }
     }
 
 }
