@@ -223,12 +223,13 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
             // TODO - change to something like this:
             //  $url = $this->getUrl('BioCatalystReports', true, true) . "?pid=$project_id"...
             $this->emLog("Getting report url:", $this->getUrl('BioCatalystReports', true, true) . "?pid=$project_id");
+            $header = array('Content-Type: application/json');
 
             $body = array("report_id"   => $report_id,
                           "token"       => $this->token);
 
             //$report = http_post($url, $body, $timeout=10, 'application/json', "", null);
-            $report = $this->http_request("POST", $url, null, $body);
+            $report = $this->http_request("POST", $url, $header, json_encode($body));
             if ($report == false) {
                 $this->error_msg = "COULD NOT RETRIEVE REPORT: User $user trying to get report $report_id for project $project_id";
                 $this->http_code = 403;
