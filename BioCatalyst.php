@@ -25,7 +25,6 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
 
     public function parseRequest() {
 
-        $this->emLog("In parse");
         // In case the request didn't come over directly in the POST
         if (empty($_POST)) {
             // Retrieve request from user
