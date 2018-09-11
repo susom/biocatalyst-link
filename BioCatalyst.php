@@ -371,7 +371,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         $error = curl_error($ch);
         $info = curl_getinfo($ch);
         curl_close($ch);
-        
+
         $this->emLog("Curl returned output: " . $response);
         $this->emLog( "Curl returned error: " . $error);
         $this->emLog("Curl info: " . json_encode($info));
