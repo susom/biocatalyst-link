@@ -218,7 +218,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
                 return false;
             }
 
-            $url = $this->getUrl('BioCatalystReports', true, true) . "&pid=$project_id";
+            $url = $this->getUrl('BioCatalystReports.php', true, true) . "&pid=$project_id";
             $this->emLog("Getting report url:" . $url);
             $header = array('Content-Type: application/json');
 
