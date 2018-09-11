@@ -364,10 +364,17 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
             curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
         }
 
+        $this->emLog("This is the body: " . $body);
+        $this->emLog("This is the header: " . $header);
+
         $response = curl_exec($ch);
         $error = curl_error($ch);
         $info = curl_getinfo($ch);
         curl_close($ch);
+        
+        $this->emLog("Curl returned output: " . $response);
+        $this->emLog( "Curl returned error: " . $error);
+        $this->emLog("Curl info: " . json_encode($info));
 
         if (!empty($error) or ($info["http_code"] !== 200)) {
             $this->emLog("Curl returned output: " . $response);
