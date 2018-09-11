@@ -202,7 +202,6 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
      */
     function getReport($project_id, $user, $report_id) {
 
-        $this->emLog("In getReport");
         // Get user rights for this project for this user
         $user_rights = UserRights::getPrivileges($project_id,  $user);
 
@@ -219,10 +218,8 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
                 return false;
             }
 
-            $url = $this->getSystemSetting('biocatalyst-report-url') . $project_id;
-            // TODO - change to something like this:
-            //  $url = $this->getUrl('BioCatalystReports', true, true) . "?pid=$project_id"...
-            $this->emLog("Getting report url:", $this->getUrl('BioCatalystReports', true, true) . "?pid=$project_id");
+            $url = $this->getUrl('BioCatalystReports', true, true) . "&pid=$project_id";
+            $this->emLog("Getting report url:" . $url);
             $header = array('Content-Type: application/json');
 
             $body = array("report_id"   => $report_id,
@@ -348,7 +345,6 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
 
     function http_request($type, $url, $header, $body=null)
     {
-        global $module;
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($ch, CURLOPT_AUTOREFERER, true);
@@ -374,9 +370,9 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         curl_close($ch);
 
         if (!empty($error) or ($info["http_code"] !== 200)) {
-            $module->emLog("Curl returned output: " . $response);
-            $module->emLog( "Curl returned error: " . $error);
-            $module->emLog("Curl info: " . json_encode($info));
+            $this->emLog("Curl returned output: " . $response);
+            $this->emLog( "Curl returned error: " . $error);
+            $this->emLog("Curl info: " . json_encode($info));
             return false;
         } else {
             return $response;
