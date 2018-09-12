@@ -224,8 +224,8 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
             $body = array("report_id"   => $report_id,
                           "token"       => $this->token);
 
-            //$report = http_post($url, $body, $timeout=10, 'application/json', "", null);
-            $report = $this->http_request("POST", $url, $header, json_encode($body));
+            $report = http_post($url, $body, $timeout=10, 'application/json', "", null);
+            //$report = $this->http_request("POST", $url, $header, json_encode($body));
             if ($report == false) {
                 $this->error_msg = "COULD NOT RETRIEVE REPORT: User $user trying to get report $report_id for project $project_id";
                 $this->http_code = 403;
@@ -341,7 +341,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         $emLogger->emLog($this->PREFIX, func_get_args(), "ERROR");
     }
 
-
+/*
     function http_request($type, $url, $header, $body=null)
     {
         $ch = curl_init($url);
@@ -384,5 +384,5 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
             return $response;
         }
     }
-
+*/
 }

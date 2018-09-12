@@ -50,11 +50,6 @@
       "type": "text"
     },
     {
-      "key": "biocatalyst-report-url",
-      "name": "<b>This is the specific URL that biocatalyst uses to retrieve a report.  This is a hack in order to set the correct project ID when calling getReport.",
-      "type": "text"
-    },
-    {
       "key": "ip_whitelist",
       "name": "IP Whitelist",
       "type": "sub_settings",

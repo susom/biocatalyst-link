@@ -34,7 +34,7 @@ $tsstart = microtime(true);
 // Retrieve the report
 $result =  REDCap::getReport($report_id, 'json');
 
-$module->emLog("getReport for ".$report_id, $result);
+//$module->emLog("getReport for ".$report_id, $result);
 
 $duration = round((microtime(true) - $tsstart) * 1000, 1);
 $module->emLog("Report retrieval time: " . json_encode(array(
