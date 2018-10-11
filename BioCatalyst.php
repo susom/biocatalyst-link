@@ -35,7 +35,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         $token = empty($_POST['token']) ? null : $_POST['token'];
         $this->token = $this->getSystemSetting('biocatalyst-api-token');
 
-        $this->emLog("t". $token, "o". $this->token);
+        $this->emDebug("t". $token, "o". $this->token);
         if(empty($token) || $token != $this->token) {
             return $this->packageError("Invalid API Token");
         }
@@ -56,6 +56,9 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
             }
         }
 
+
+
+        // PARSE POST PARAMETERS
         $request = empty($_POST['request']) ? null : $_POST['request'];
         if (!in_array($request, array("users", "reports"))) {
             return $this->packageError("Invalid request");
@@ -72,10 +75,14 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         }
 
         $report_id = empty($_POST['report_id']) ? "" : intval($_POST['report_id']);
-        $this->emLog("Request $request / Users $users / Project_id $project_id / report_id $report_id");
+        $this->emDebug("Request $request / Users $users / Project_id $project_id / report_id $report_id");
+
+
+
 
         // Keep timestamp of start time
         $tsstart = microtime(true);
+
 
         $result = array();
         if ($request == "users") {
@@ -89,16 +96,26 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
             }
             $result = json_encode($complete_list);
         } elseif ($request == "reports") {
+            // GET THE REPORTS
             $user = $users; // assume there is only one user
             if (empty($report_id)) {
                 $result = $this->getProjectReports($project_id, $user);
             } else {
                 $result = $this->getReport($project_id, $user, $report_id);
             }
+        } elseif ($request == "columns") {
+            // RETURN THE COLUMN LABELS AND FIELD_NAMES
+            $user = $users; // assume there is only one user
+            if (empty($report_id)) {
+                $result = $this->packageError("Missing required report id");
+            } else {
+                $result = $this->getReportColumns($project_id, $user, $report_id);
+            }
         }
 
+
         $duration = round((microtime(true) - $tsstart) * 1000, 1);
-        $this->emLog(array(
+        $this->emDebug(array(
             "duration" => $duration,
             "user" => $users
         ));
@@ -233,6 +250,60 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         }
         return $report;
     }
+
+
+
+    function getReportColumns($project_id, $user, $report_id) {
+
+        // Get user rights for this project for this user
+        $user_rights = UserRights::getPrivileges($project_id,  $user);
+
+        // Make sure this user has at least export and report privileges
+        if ($user_rights[$project_id][$user]["data_export_tool"] == '0' || $user_rights[$project_id][$user]["reports"] != '1') {
+            $this->error_msg = "NOT AUTHORIZED: User $user trying to get report $report_id for project $project_id";
+            $this->http_code = 403;
+            $report = false;
+        } else {
+            // Check to make sure this report belongs to this project
+            $valid_report = $this->checkReportInProject($project_id, $report_id);
+            if ($valid_report == false) {
+                return false;
+            }
+
+            // GET COLUMNS FROM REPORT
+            $sql = "
+                select
+                   rrf.field_order,
+                   rm.form_name,
+                   rrf.field_name,
+                   rm.element_label as field_label,
+                   rm.element_type as field_type,
+                   rm.element_enum as field_options
+                from
+                     redcap_reports_fields rrf
+                join redcap_reports rr on rr.report_id = rrf.report_id
+                join redcap_metadata rm on rm.field_name = rrf.field_name and rm.project_id = rr.project_id
+                where rrf.report_id = " . intval($report_id) . "
+                and rrf.limiter_group_operator is null
+                order by rrf.field_order";
+            $q = db_query($sql);
+
+            $results = array();
+            while ($row = db_fetch_assoc($q)) $results[] = $row;
+
+            if (empty($results) || $results == false) {
+                $report = false;
+                $this->error_msg = "COULD NOT RETRIEVE REPORT COLUMNS: User $user trying to get report columns for report $report_id for project $project_id";
+                $this->http_code = 403;
+            } else {
+                $report = $results;
+            }
+        }
+        return $report;
+    }
+
+
+
 
 
     /**
