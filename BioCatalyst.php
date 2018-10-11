@@ -269,7 +269,7 @@ class BioCatalyst extends AbstractExternalModule
         if (! $this->checkReportInProject($project_id, $report_id) ) $this->returnError("NOT AUTHORIZED: Report $report_id is not part of project $project_id");
 
 
-        if (isset($_GET['pid']) && $_GET['pid'] == $this->project_id) {
+        if (isset($_GET['pid']) && $_GET['pid'] == $project_id) {
             // We are in project context so we can actually pull the report
             // This is actually a recursive call to this same php page from the server
             $report =  REDCap::getReport($this->report_id, 'json');
@@ -280,7 +280,6 @@ class BioCatalyst extends AbstractExternalModule
 
             $body = $_POST;
             $body['magic_skip_cidr'] = true;
-
             $report = http_post($url, $body, $timeout=10, 'application/json', "", null);
             if ($report == false) $this->returnError("COULD NOT RETRIEVE REPORT: User $user trying to get report $report_id for project $project_id");
         }
