@@ -64,6 +64,9 @@ Return includes:
                                 ...         }]
 
 
+#### Report Columns Support
+Added support to call for report columns
+
 ### Misc
 Contacts for BioCatalyst are:
     Jessiely Juachon <jessiely@stanford.edu>

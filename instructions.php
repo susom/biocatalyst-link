@@ -46,7 +46,7 @@ if (empty($module->getSystemSetting("biocatalyst-api-token"))) {
     </p>
     <pre>
     token:       <?php echo $module->getSystemSetting("biocatalyst-api-token"); ?> (this token is a shared secret and can only be reset by Super Users)
-    request:     users | reports
+    request:     users | reports | columns
     user:        SUNETID (e.g. jdoe)
     project_id:  (optional) REDCap Project ID (e.g. 12345)
     report_id:   (optional) REDCap Report ID (e.g. 1234)
