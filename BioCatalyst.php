@@ -321,12 +321,19 @@ class BioCatalyst extends AbstractExternalModule
             order by rrf.field_order";
         $q = db_query($sql);
 
-        $results = array();
-        while ($row = db_fetch_assoc($q)) $results[] = $row;
+        $columns = array();
+        while ($row = db_fetch_assoc($q)) $columns[] = $row;
 
-        if (empty($results) || $results == false) $this->returnError("COULD NOT RETRIEVE REPORT COLUMNS: User $user trying to get report columns for report $report_id for project $project_id");
+        if (empty($columns) || $columns == false) $this->returnError("COULD NOT RETRIEVE REPORT COLUMNS: User $user trying to get report columns for report $report_id for project $project_id");
 
-        return $results;
+        $result = array(
+            'report_id' => $report_id,
+            'project_id' => $project_id,
+            'user' => $user,
+            'columns' => $columns
+        );
+        
+        return $result;
     }
 
 
