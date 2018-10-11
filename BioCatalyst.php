@@ -283,6 +283,7 @@ class BioCatalyst extends AbstractExternalModule
             $report = http_post($url, $body, $timeout=10, 'application/json', "", null);
             if ($report == false) $this->returnError("COULD NOT RETRIEVE REPORT: User $user trying to get report $report_id for project $project_id");
         }
+        $report = json_decode($report,true);
         return $report;
     }
 
@@ -332,7 +333,7 @@ class BioCatalyst extends AbstractExternalModule
             'user' => $user,
             'columns' => $columns
         );
-        
+
         return $result;
     }
 
