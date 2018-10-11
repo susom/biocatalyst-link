@@ -272,7 +272,7 @@ class BioCatalyst extends AbstractExternalModule
         if (isset($_GET['pid']) && $_GET['pid'] == $this->project_id) {
             // We are in project context so we can actually pull the report
             // This is actually a recursive call to this same php page from the server
-            $report =  REDCap::getReport($this->report_id, 'json');
+            $report =  json_decode( REDCap::getReport($this->report_id, 'json'), true );
         } else {
             // Because exporting a report must be done in project context, we are using a callback to another page to accomplish this
             $url = $this->getUrl('service.php', true, true) . "&pid=$project_id";
