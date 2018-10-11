@@ -170,7 +170,7 @@ class BioCatalyst extends AbstractExternalModule
      */
     function getProjectUserRights($user) {
         $projects = $this->getEnabledProjects();
-        $this->emLog("Enabled projects: " . $projects . ", user " . $user);
+        $this->emDebug("Enabled projects: " . $projects . ", user " . $user);
 
         $proj_rights = array();
         foreach ($projects as $project) {
