@@ -272,7 +272,8 @@ class BioCatalyst extends AbstractExternalModule
         if (isset($_GET['pid']) && $_GET['pid'] == $this->project_id) {
             // We are in project context so we can actually pull the report
             // This is actually a recursive call to this same php page from the server
-            $report =  json_decode( REDCap::getReport($this->report_id, 'json'), true );
+            $report =  REDCap::getReport($this->report_id, 'json');
+            //$report = json_decode($report,true);
         } else {
             // Because exporting a report must be done in project context, we are using a callback to another page to accomplish this
             $url = $this->getUrl('service.php', true, true) . "&pid=$project_id";
@@ -283,6 +284,7 @@ class BioCatalyst extends AbstractExternalModule
             $report = http_post($url, $body, $timeout=10, 'application/json', "", null);
             if ($report == false) $this->returnError("COULD NOT RETRIEVE REPORT: User $user trying to get report $report_id for project $project_id");
         }
+        $this->emDebug("Got Report",$report);
         $report = json_decode($report,true);
         return $report;
     }
@@ -307,9 +309,9 @@ class BioCatalyst extends AbstractExternalModule
         // GET COLUMNS FROM REPORT
         $sql = "
             select
-               rrf.field_order,
                rm.form_name,
                rrf.field_name,
+               rrf.field_order,
                rm.element_label as field_label,
                rm.element_type as field_type,
                rm.element_enum as field_options
