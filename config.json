@@ -62,6 +62,12 @@
           "type": "text"
         }
       ]
+    },
+    {
+      "key": "enable-system-debug-logging",
+      "name": "<b>Enable Debug Logging (system-wide)</b>",
+      "required": false,
+      "type": "checkbox"
     }
   ],
 
@@ -69,6 +75,12 @@
     {
       "key": "biocatalyst-enabled",
       "name": "<b>Enable Stanford Biocatalyst to access reports in this project</b><br/>Only a project admin can enable/disable this feature for a project.  Once enabled, any REDCap user of this project with Data Export rights will be able to access this project's reports from the BioCatalyst application.",
+      "type": "checkbox"
+    },
+    {
+      "key": "enable-project-debug-logging",
+      "name": "<b>Enable Debug Logging</b>",
+      "required": false,
       "type": "checkbox"
     }
   ]

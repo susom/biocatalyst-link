@@ -6,48 +6,133 @@ require_once("emLoggerTrait.php");
 
 use REDCap;
 use UserRights;
+use ExternalModules\AbstractExternalModule;
 
 /**
  * Class BioCatalyst
  *
  * @package Stanford\BioCatalyst
  */
-class BioCatalyst extends \ExternalModules\AbstractExternalModule
+class BioCatalyst extends AbstractExternalModule
 {
-
     use emLoggerTrait;
 
-    public $token;
-    public $user_rights_to_export = array('data_export_tool', 'reports'); //, 'data_access_groups');
-    private $http_code = null;
-    private $error_msg = null;
 
-    //public function __construct()
-    //{
-    //    parent::__construct();
-    //}
+    // System settings
+    private $api_token;
 
-    public function parseRequest() {
+    // Request Parameters
+    public $token, $project_id, $request, $users, $report_id;
 
-        // In case the request didn't come over directly in the POST
-        if (empty($_POST)) {
-            // Retrieve request from user
-            $_POST = json_decode(file_get_contents('php://input'), true);
+    static $user_rights_to_export = array('data_export_tool', 'reports'); //, 'data_access_groups');
+
+    // Performance
+    private $ts_start;
+
+
+    /**
+     * This function wraps the handling of all API requests
+     *
+     * @return array|bool|false|string
+     */
+    public function parseRequest()
+    {
+        // LOG START TIME
+        $this->ts_start = microtime(true);
+
+        // FILTER BY IP
+        $this->applyIpFilter();
+
+
+        // CONVERT RAW POST TO PHP POST
+        if (empty($_POST)) $_POST = json_decode(file_get_contents('php://input'), true);
+
+
+        // PARSE POST PARAMETERS
+        $this->token      = empty($_POST['token'])      ? null : $_POST['token'];
+        $this->request    = empty($_POST['request'])    ? null : $_POST['request'];
+        $this->users      = empty($_POST['user'])       ? null : array_filter(array_map('trim', explode(',', strtolower($_POST['user']))));
+        $this->project_id = empty($_POST['project_id']) ? ""   : intval($_POST['project_id']);
+        $this->report_id  = empty($_POST['report_id'])  ? ""   : intval($_POST['report_id']);
+
+        // VERIFY TOKEN
+        $this->api_token = $this->getSystemSetting('biocatalyst-api-token');
+        if (empty($this->token) || $this->token != $this->api_token) $this->returnError("Invalid API Token");
+
+        $this->performRequest();
+    }
+
+
+    /**
+     * Perform the actual request
+     * @return array|bool|false|string
+     */
+    public function performRequest() {
+        $this->emDebug("performing Request $this->request", $this->users, $this->project_id, $this->report_id);
+
+        $result = array();
+
+        switch($this->request) {
+            case "users":
+                // Validate users
+                if (empty($this->users)) $this->returnError("Missing required user");
+                foreach ($this->users as $user) {
+                    // Get all projects and the user's rights in those projects for reports
+                    $result[] = $this->getProjectUserRights($user);
+                }
+                break;
+
+            case "reports":
+                // Validate
+                if (empty($this->users)) $this->returnError("Missing required user");
+                if (count($this->users) > 1) $this->returnError("Only one user at a time");
+                if (empty($this->project_id)) $this->returnError("Missing required project_id");
+
+
+                $user = $this->users[0];
+                if (empty($this->report_id)) {
+                    // GET ALL REPORTS FOR THE USER
+                    $result = $this->getProjectReports($this->project_id, $user);
+                } else {
+                    // GET SPECIFIC REPORT FOR USER
+                    $result = $this->getReport($this->project_id, $user, $this->report_id);
+                }
+                break;
+
+            case "columns":
+                // Validate
+                if (empty($this->users)) $this->returnError("Missing required user");
+                if (count($this->users) > 1) $this->returnError("Only one user at a time");
+                $user = $this->users[0];
+
+                if (empty($this->project_id)) $this->returnError("Missing required project_id");
+                if (empty($this->report_id)) $this->returnError("Missing required report id");
+                $result = $this->getReportColumns($this->project_id, $user, $this->report_id);
+               break;
+
+
+            default:
+                $this->returnError("Invalid Request");
+                break;
         }
 
-        // Verify Token
-        $token = empty($_POST['token']) ? null : $_POST['token'];
-        $this->token = $this->getSystemSetting('biocatalyst-api-token');
+        $duration = round((microtime(true) - $this->ts_start) * 1000, 1);
 
-        $this->emDebug("t". $token, "o". $this->token);
-        if(empty($token) || $token != $this->token) {
-            return $this->packageError("Invalid API Token");
-        }
+        $this->emDebug("Request Duration", $duration);
 
-        // Verify IP Filter
+        // Output Results
+        header("Content-type: application/json");
+        echo json_encode($result);
+    }
+
+
+    /**
+     * Apply the IP filter if set
+     */
+    function applyIpFilter() {
+        // APPLY IP FILTER
         $ip_filter = $this->getSystemSetting('ip');
-
-        if (!empty($ip_filter) && !empty($ip_filter[0])) {
+        if (!empty($ip_filter) && !empty($ip_filter[0]) && empty($_POST['magic_skip_cidr'])) {
             $isValid = false;
             foreach ($ip_filter as $filter) {
                 if (self::ipCIDRCheck($filter)) {
@@ -55,82 +140,26 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
                     break;
                 }
             }
-            if (!$isValid) {
-                 return $this->packageError("Invalid source IP");
-            }
-        }
-
-
-
-        // PARSE POST PARAMETERS
-        $request = empty($_POST['request']) ? null : $_POST['request'];
-        if (!in_array($request, array("users", "reports"))) {
-            return $this->packageError("Invalid request");
-        }
-
-        $users = empty($_POST['user']) ? null : strtolower( $_POST['user'] );
-        if (empty($users)) {
-            return $this->packageError("Missing required user");
-        }
-
-        $project_id = empty($_POST['project_id']) ? "" : intval($_POST['project_id']);
-        if ($request == "reports" && empty($project_id)) {
-            return $this->packageError("Project_id required");
-        }
-
-        $report_id = empty($_POST['report_id']) ? "" : intval($_POST['report_id']);
-        $this->emDebug("Request $request / Users $users / Project_id $project_id / report_id $report_id");
-
-
-
-
-        // Keep timestamp of start time
-        $tsstart = microtime(true);
-
-
-        $result = array();
-        if ($request == "users") {
-            // There may be a comma separated list of users. Split the list and loop over each user
-            $user_list = array_map('trim', explode(',', $users));
-            $complete_list = array();
-            foreach ($user_list as $user) {
-                $this->emLog("user: " . $user);
-                // Get all projects and the user's rights in those projects for reports
-                $complete_list[] = $this->getProjectUserRights($user);
-            }
-            $result = json_encode($complete_list);
-        } elseif ($request == "reports") {
-            // GET THE REPORTS
-            $user = $users; // assume there is only one user
-            if (empty($report_id)) {
-                $result = $this->getProjectReports($project_id, $user);
-            } else {
-                $result = $this->getReport($project_id, $user, $report_id);
-            }
-        } elseif ($request == "columns") {
-            // RETURN THE COLUMN LABELS AND FIELD_NAMES
-            $user = $users; // assume there is only one user
-            if (empty($report_id)) {
-                $result = $this->packageError("Missing required report id");
-            } else {
-                $result = $this->getReportColumns($project_id, $user, $report_id);
-            }
-        }
-
-
-        $duration = round((microtime(true) - $tsstart) * 1000, 1);
-        $this->emDebug(array(
-            "duration" => $duration,
-            "user" => $users
-        ));
-
-        if ($result == false) {
-            return $this->packageError($this->error_msg);
-        } else {
-            header("Context-type: application/json");
-            return $result;
+            // Exit - invalid IP
+            if (!$isValid) $this->returnError("Invalid source IP");
         }
     }
+
+
+    /**
+     * Return an error message and exit
+     * @param string    $error_message
+     * @param int       $http_code
+     */
+    function returnError($error_message, $http_code=404) {
+        header("Content-type: application/json");
+        http_response_code($http_code);
+        echo json_encode(["error" => $error_message]);
+
+        $this->emError($error_message);
+        exit();
+    }
+
 
     /**
      * Get all projects that are enabled for BioCatalyst AND
@@ -151,7 +180,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
 
             if (isset($user_rights[$project_id][$user])) {
                 // User has rights - lets filter list to those we want
-                $rights = array_intersect_key($user_rights[$project_id][$user], array_flip($this->user_rights_to_export));
+                $rights = array_intersect_key($user_rights[$project_id][$user], array_flip(self::$user_rights_to_export));
                 $proj_rights[] = array(
                     "project_id" => $project_id,
                     "project_title" => $project_title,
@@ -170,45 +199,56 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
 
 
     /**
+     * Verify user rights for data export
+     * @param $project_id
+     * @param $user
+     * @return bool
+     */
+    function verifyExportRights($project_id, $user) {
+        // Retrieve user rights
+        $user_rights = UserRights::getPrivileges($project_id,  $user);
+
+        // Error if insufficient permissions
+        if ($user_rights[$project_id][$user]["data_export_tool"] == '0' || $user_rights[$project_id][$user]["reports"] != '1') {
+            return false;
+        }
+        return true;
+    }
+
+
+
+    /**
      * Return array of report_id, report_name, report_fields or other data?
      * @param $user
      * @param $project_id
-     * @return bool|string
+     * @return array
      */
     function getProjectReports($project_id, $user) {
 
         // Retrieve user rights
-        $user_rights = UserRights::getPrivileges($project_id,  $user);
+        if (! $this->verifyExportRights($project_id, $user) ) $this->returnError("NOT AUTHORIZED: User $user trying to get report list for project $project_id");
 
-        // Verify permissions
-        if ($user_rights[$project_id][$user]["data_export_tool"] == '0' || $user_rights[$project_id][$user]["reports"] != '1') {
-            $this->http_code = 403;
-            $this->error_msg = "NOT AUTHORIZED: User $user trying to get report list for project $project_id";
-            return false;
-        } else {
+        // If this person has export and reports rights, find the report ids for this project
+        $reports = array();
 
-            // If this person has export and reports rights, find the report ids for this project
-            $reports = array();
-
-            // Get all reports for the specified biocatalyst project
-            $sql = "select rr.report_id, rr.title
-                    from redcap_external_modules rem
-                    left join redcap_external_module_settings rems on rem.external_module_id = rems.external_module_id
-                    left join redcap_reports rr on rems.project_id = rr.project_id
-                    where rem.directory_prefix = 'biocatalyst_link'
-                    and rems.key = 'biocatalyst-enabled'
-                    and rems.value = 'true'
-                    and rr.project_id = " . intval($project_id);
-            $q = $this->query($sql);
-            while ($row = db_fetch_assoc($q)) {
-                $reports[] = $row;
-            }
-
-            // Send back the list of report_ids that this person has access to.
-            $response = array("project_id" => $project_id,
-                              "reports" => $reports);
-            return json_encode($response);
+        // Get all reports for the specified biocatalyst project
+        $sql = "select rr.report_id, rr.title
+                from redcap_external_modules rem
+                left join redcap_external_module_settings rems on rem.external_module_id = rems.external_module_id
+                left join redcap_reports rr on rems.project_id = rr.project_id
+                where rem.directory_prefix = 'biocatalyst_link'
+                and rems.key = 'biocatalyst-enabled'
+                and rems.value = 'true'
+                and rr.project_id = " . intval($project_id);
+        $q = $this->query($sql);
+        while ($row = db_fetch_assoc($q)) {
+            $reports[] = $row;
         }
+
+        // Send back the list of report_ids that this person has access to.
+        $results = array("project_id" => $project_id,
+                          "reports" => $reports);
+        return $results;
     }
 
 
@@ -222,88 +262,71 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
      */
     function getReport($project_id, $user, $report_id) {
 
-        // Get user rights for this project for this user
-        $user_rights = UserRights::getPrivileges($project_id,  $user);
+        // Verify permissions
+        if (! $this->verifyExportRights($project_id, $user) ) $this->returnError("NOT AUTHORIZED: User $user trying to get report $report_id for project $project_id");
 
-        // Make sure this user has at least export and report privileges
-        if ($user_rights[$project_id][$user]["data_export_tool"] == '0' || $user_rights[$project_id][$user]["reports"] != '1') {
-            $this->error_msg = "NOT AUTHORIZED: User $user trying to get report $report_id for project $project_id";
-            $this->http_code = 403;
-            $report = false;
+        // Check to make sure this report belongs to this project
+        if (! $this->checkReportInProject($project_id, $report_id) ) $this->returnError("NOT AUTHORIZED: Report $report_id is not part of project $project_id");
+
+
+        if (isset($_GET['pid']) && $_GET['pid'] == $this->project_id) {
+            // We are in project context so we can actually pull the report
+            // This is actually a recursive call to this same php page from the server
+            $report =  REDCap::getReport($this->report_id, 'json');
         } else {
+            // Because exporting a report must be done in project context, we are using a callback to another page to accomplish this
+            $url = $this->getUrl('service.php', true, true) . "&pid=$project_id";
 
-            // Check to make sure this report belongs to this project
-            $valid_report = $this->checkReportInProject($project_id, $report_id);
-            if ($valid_report == false) {
-                return false;
-            }
-
-            $url = $this->getUrl('BioCatalystReports.php', true, true) . "&pid=$project_id";
-            $this->emLog("Getting report url:" . $url);
-            $header = array('Content-Type: application/json');
-
-            $body = array("report_id"   => $report_id,
-                          "token"       => $this->token);
+            $body = $_POST;
+            $body['magic_skip_cidr'] = true;
 
             $report = http_post($url, $body, $timeout=10, 'application/json', "", null);
-            //$report = $this->http_request("POST", $url, $header, json_encode($body));
-            if ($report == false) {
-                $this->error_msg = "COULD NOT RETRIEVE REPORT: User $user trying to get report $report_id for project $project_id";
-                $this->http_code = 403;
-            }
+            if ($report == false) $this->returnError("COULD NOT RETRIEVE REPORT: User $user trying to get report $report_id for project $project_id");
         }
         return $report;
     }
 
 
-
+    /**
+     * Gets report metadata or returns
+     * @param $project_id
+     * @param $user
+     * @param $report_id
+     * @return array
+     */
     function getReportColumns($project_id, $user, $report_id) {
 
-        // Get user rights for this project for this user
-        $user_rights = UserRights::getPrivileges($project_id,  $user);
+        // Verify permissions
+        if (! $this->verifyExportRights($project_id, $user) ) $this->returnError("NOT AUTHORIZED: User $user trying to get report columns for report $report_id for project $project_id");
 
-        // Make sure this user has at least export and report privileges
-        if ($user_rights[$project_id][$user]["data_export_tool"] == '0' || $user_rights[$project_id][$user]["reports"] != '1') {
-            $this->error_msg = "NOT AUTHORIZED: User $user trying to get report $report_id for project $project_id";
-            $this->http_code = 403;
-            $report = false;
-        } else {
-            // Check to make sure this report belongs to this project
-            $valid_report = $this->checkReportInProject($project_id, $report_id);
-            if ($valid_report == false) {
-                return false;
-            }
+        // Check to make sure this report belongs to this project
+        if (! $this->checkReportInProject($project_id, $report_id) ) $this->returnError("NOT AUTHORIZED: Report $report_id is not part of project $project_id");
 
-            // GET COLUMNS FROM REPORT
-            $sql = "
-                select
-                   rrf.field_order,
-                   rm.form_name,
-                   rrf.field_name,
-                   rm.element_label as field_label,
-                   rm.element_type as field_type,
-                   rm.element_enum as field_options
-                from
-                     redcap_reports_fields rrf
-                join redcap_reports rr on rr.report_id = rrf.report_id
-                join redcap_metadata rm on rm.field_name = rrf.field_name and rm.project_id = rr.project_id
-                where rrf.report_id = " . intval($report_id) . "
-                and rrf.limiter_group_operator is null
-                order by rrf.field_order";
-            $q = db_query($sql);
 
-            $results = array();
-            while ($row = db_fetch_assoc($q)) $results[] = $row;
+        // GET COLUMNS FROM REPORT
+        $sql = "
+            select
+               rrf.field_order,
+               rm.form_name,
+               rrf.field_name,
+               rm.element_label as field_label,
+               rm.element_type as field_type,
+               rm.element_enum as field_options
+            from
+                 redcap_reports_fields rrf
+            join redcap_reports rr on rr.report_id = rrf.report_id
+            join redcap_metadata rm on rm.field_name = rrf.field_name and rm.project_id = rr.project_id
+            where rrf.report_id = " . intval($report_id) . "
+            and rrf.limiter_group_operator is null
+            order by rrf.field_order";
+        $q = db_query($sql);
 
-            if (empty($results) || $results == false) {
-                $report = false;
-                $this->error_msg = "COULD NOT RETRIEVE REPORT COLUMNS: User $user trying to get report columns for report $report_id for project $project_id";
-                $this->http_code = 403;
-            } else {
-                $report = $results;
-            }
-        }
-        return $report;
+        $results = array();
+        while ($row = db_fetch_assoc($q)) $results[] = $row;
+
+        if (empty($results) || $results == false) $this->returnError("COULD NOT RETRIEVE REPORT COLUMNS: User $user trying to get report columns for report $report_id for project $project_id");
+
+        return $results;
     }
 
 
@@ -314,7 +337,7 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
      * Check to make sure this report belongs to the specified project before retrieving report
      * @return bool
      */
-    function checkReportInProject ($project_id, $report_id)
+    function checkReportInProject($project_id, $report_id)
     {
         // Make sure this report_id belongs to this project_id otherwise we don't get
         // a nice message returned
@@ -327,8 +350,6 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         if ($num_reports["count(1)"] == 1) {
             return true;
         } else {
-            $this->error_msg = "Report $report_id not valid for Project $project_id";
-            $this->http_code = 404;
             return false;
         }
     }
@@ -349,9 +370,8 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
           and rems.key = 'biocatalyst-enabled'
           and rems.value = 'true'";
         $q = $this->query($sql);
-        while($row = db_fetch_assoc($q)){
-            $projects[] = $row;
-        }
+        while($row = db_fetch_assoc($q)) $projects[] = $row;
+
         return $projects;
     }
 
@@ -376,24 +396,6 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         $ip_ip = ip2long($ip);
         $ip_ip_net = $ip_ip & $ip_mask;
         return ($ip_ip_net == $ip_net);
-    }
-
-
-    /*
-     * This function gets called when an error occurs and we need to do cleanup
-     * Set http_code to indicate an error.  404 will be used as a default unless another one is specified
-     * Log the error and return
-     */
-    function packageError($errorString) {
-        $jsonString = json_encode(array("error" => $errorString));
-        if (is_null($this->http_code)) {
-            http_response_code(404);
-        } else {
-            http_response_code($this->http_code);
-        }
-
-        $this->emError($errorString);
-        return $jsonString;
     }
 
 }

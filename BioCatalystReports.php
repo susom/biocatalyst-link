@@ -22,6 +22,9 @@ $module->emLog("POST ",$_POST);
 $token = empty($_POST['token']) ? null : $_POST['token'];
 $report_id = empty($_POST['report_id']) ? "" : intval($_POST['report_id']);
 
+
+
+
 $check_token = $module->getSystemSetting('biocatalyst-api-token');
 if ($token <> $check_token) {
     $error = array("error" => "Invalid token");
