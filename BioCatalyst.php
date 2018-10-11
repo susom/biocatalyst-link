@@ -2,6 +2,8 @@
 namespace Stanford\BioCatalyst;
 /** @var \Stanford\BioCatalyst\BioCatalyst $module */
 
+require_once("emLoggerTrait.php");
+
 use REDCap;
 use UserRights;
 
@@ -12,8 +14,10 @@ use UserRights;
  */
 class BioCatalyst extends \ExternalModules\AbstractExternalModule
 {
-    public $token;
 
+    use emLoggerTrait;
+
+    public $token;
     public $user_rights_to_export = array('data_export_tool', 'reports'); //, 'data_access_groups');
     private $http_code = null;
     private $error_msg = null;
@@ -392,68 +396,4 @@ class BioCatalyst extends \ExternalModules\AbstractExternalModule
         return $jsonString;
     }
 
-
-
-    function emLog() {
-        $emLogger = \ExternalModules\ExternalModules::getModuleInstance('em_logger');
-        $emLogger->emLog($this->PREFIX, func_get_args(), "INFO");
-    }
-
-    function emDebug() {
-        // Check if debug enabled
-        if ($this->getSystemSetting('enable-system-debug-logging') || $this->getProjectSetting('enable-project-debug-logging')) {
-            $emLogger = \ExternalModules\ExternalModules::getModuleInstance('em_logger');
-            $emLogger->emLog($this->PREFIX, func_get_args(), "DEBUG");
-        }
-    }
-
-    function emError() {
-        $emLogger = \ExternalModules\ExternalModules::getModuleInstance('em_logger');
-        $emLogger->emLog($this->PREFIX, func_get_args(), "ERROR");
-    }
-
-/*
-    function http_request($type, $url, $header, $body=null)
-    {
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($ch, CURLOPT_AUTOREFERER, true);
-        curl_setopt($ch, CURLOPT_MAXREDIRS, 10);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        if ($type == "GET") {
-            curl_setopt($ch, CURLOPT_HTTPGET, true);
-        } else if ($type == "POST") {
-            curl_setopt($ch, CURLOPT_POST, true);
-        } else {
-            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $type);
-        }
-        if (!is_null($body) and !empty($body)) {
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
-        }
-        if (!is_null($header) and !empty($header)) {
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
-        }
-
-        $this->emLog("This is the body: " . $body);
-        $this->emLog("This is the header: " . $header);
-
-        $response = curl_exec($ch);
-        $error = curl_error($ch);
-        $info = curl_getinfo($ch);
-        curl_close($ch);
-
-        $this->emLog("Curl returned output: " . $response);
-        $this->emLog( "Curl returned error: " . $error);
-        $this->emLog("Curl info: " . json_encode($info));
-
-        if (!empty($error) or ($info["http_code"] !== 200)) {
-            $this->emLog("Curl returned output: " . $response);
-            $this->emLog( "Curl returned error: " . $error);
-            $this->emLog("Curl info: " . json_encode($info));
-            return false;
-        } else {
-            return $response;
-        }
-    }
-*/
 }
