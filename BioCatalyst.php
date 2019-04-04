@@ -88,7 +88,6 @@ class BioCatalyst extends AbstractExternalModule
                 if (count($this->users) > 1) $this->returnError("Only one user at a time");
                 if (empty($this->project_id)) $this->returnError("Missing required project_id");
 
-
                 $user = $this->users[0];
                 if (empty($this->report_id)) {
                     // GET ALL REPORTS FOR THE USER
@@ -268,11 +267,10 @@ class BioCatalyst extends AbstractExternalModule
         // Check to make sure this report belongs to this project
         if (! $this->checkReportInProject($project_id, $report_id) ) $this->returnError("NOT AUTHORIZED: Report $report_id is not part of project $project_id");
 
-
         if (isset($_GET['pid']) && $_GET['pid'] == $project_id) {
             // We are in project context so we can actually pull the report
             // This is actually a recursive call to this same php page from the server
-            $report =  REDCap::getReport($this->report_id, 'json');
+            $report =  REDCap::getReport($this->report_id, 'json', true);
             //$report = json_decode($report,true);
         } else {
             // Because exporting a report must be done in project context, we are using a callback to another page to accomplish this
