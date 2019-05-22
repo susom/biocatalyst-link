@@ -11,6 +11,8 @@ use ExternalModules\AbstractExternalModule;
 /**
  * Class BioCatalyst
  *
+ * If raw data (not labels) is desired, the POST needs to have an entry 'raw_data' set to 1 (true).
+ *
  * @package Stanford\BioCatalyst
  */
 class BioCatalyst extends AbstractExternalModule
@@ -22,7 +24,7 @@ class BioCatalyst extends AbstractExternalModule
     private $api_token;
 
     // Request Parameters
-    public $token, $project_id, $request, $users, $report_id;
+    public $token, $project_id, $request, $users, $report_id, $raw_data;
 
     static $user_rights_to_export = array('data_export_tool', 'reports'); //, 'data_access_groups');
 
@@ -54,6 +56,10 @@ class BioCatalyst extends AbstractExternalModule
         $this->users      = empty($_POST['user'])       ? null : array_filter(array_map('trim', explode(',', strtolower($_POST['user']))));
         $this->project_id = empty($_POST['project_id']) ? ""   : intval($_POST['project_id']);
         $this->report_id  = empty($_POST['report_id'])  ? ""   : intval($_POST['report_id']);
+
+        // Check to see if raw data is desired: ['raw_data'] = 1
+        // Default is to return field labels for radios, checkboxes, dropdowns, etc.
+        $this->raw_data   = empty($_POST['raw_data']) ? false : (intval($_POST['raw_data']) === 1 ? true : false);
 
         // VERIFY TOKEN
         $this->api_token = $this->getSystemSetting('biocatalyst-api-token');
@@ -270,7 +276,11 @@ class BioCatalyst extends AbstractExternalModule
         if (isset($_GET['pid']) && $_GET['pid'] == $project_id) {
             // We are in project context so we can actually pull the report
             // This is actually a recursive call to this same php page from the server
-            $report =  REDCap::getReport($this->report_id, 'json', true);
+            if ($this->raw_data) {
+                $report = REDCap::getReport($this->report_id, 'json', false);
+            } else {
+                $report = REDCap::getReport($this->report_id, 'json', true);
+            }
             //$report = json_decode($report,true);
         } else {
             // Because exporting a report must be done in project context, we are using a callback to another page to accomplish this
