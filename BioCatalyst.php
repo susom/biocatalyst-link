@@ -46,7 +46,7 @@ class BioCatalyst extends AbstractExternalModule
         if (empty($_POST)) $_POST = json_decode(file_get_contents('php://input'), true);
 
         // FILTER BY IP
-        $this->applyIpFilter($_POST);
+        $this->applyIpFilter();
 
         // PARSE POST PARAMETERS
         $this->token      = empty($_POST['token'])      ? null : $_POST['token'];
@@ -132,14 +132,14 @@ class BioCatalyst extends AbstractExternalModule
     /**
      * Apply the IP filter if set
      */
-    function applyIpFilter($post) {
+    function applyIpFilter() {
 
         $ip_addr = trim($_SERVER['REMOTE_ADDR']);
         $this->emDebug("Biocatalyst Report API - Incoming IP address: " . $ip_addr);
 
         // APPLY IP FILTER
         $ip_filter = $this->getSystemSetting('ip');
-        if (!empty($ip_filter) && !empty($ip_filter[0]) && empty($post['magic_skip_cidr'])) {
+        if (!empty($ip_filter) && !empty($ip_filter[0]) && empty($_POST['magic_skip_cidr'])) {
             $isValid = false;
             foreach ($ip_filter as $filter) {
                 if (self::ipCIDRCheck($filter, $ip_addr)) {
