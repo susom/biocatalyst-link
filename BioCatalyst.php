@@ -42,13 +42,11 @@ class BioCatalyst extends AbstractExternalModule
         // LOG START TIME
         $this->ts_start = microtime(true);
 
-        // FILTER BY IP
-        $this->applyIpFilter();
-
-
         // CONVERT RAW POST TO PHP POST
         if (empty($_POST)) $_POST = json_decode(file_get_contents('php://input'), true);
 
+        // FILTER BY IP
+        $this->applyIpFilter($_POST);
 
         // PARSE POST PARAMETERS
         $this->token      = empty($_POST['token'])      ? null : $_POST['token'];
@@ -134,14 +132,14 @@ class BioCatalyst extends AbstractExternalModule
     /**
      * Apply the IP filter if set
      */
-    function applyIpFilter() {
+    function applyIpFilter($post) {
 
         $ip_addr = trim($_SERVER['REMOTE_ADDR']);
         $this->emDebug("Biocatalyst Report API - Incoming IP address: " . $ip_addr);
 
         // APPLY IP FILTER
         $ip_filter = $this->getSystemSetting('ip');
-        if (!empty($ip_filter) && !empty($ip_filter[0]) && empty($_POST['magic_skip_cidr'])) {
+        if (!empty($ip_filter) && !empty($ip_filter[0]) && empty($post['magic_skip_cidr'])) {
             $isValid = false;
             foreach ($ip_filter as $filter) {
                 if (self::ipCIDRCheck($filter, $ip_addr)) {
@@ -306,10 +304,11 @@ class BioCatalyst extends AbstractExternalModule
 
             $body = $_POST;
             $body['magic_skip_cidr'] = true;
+            $this->emDebug("Resending to myself: " . json_encode($body));
             $report = http_post($url, $body, $timeout=10, 'application/json', "", null);
             if ($report == false) $this->returnError("COULD NOT RETRIEVE REPORT: User $user trying to get report $report_id for project $project_id");
         }
-        $this->emDebug("Got Report",$report);
+        //$this->emDebug("Got Report",$report);
         $report = json_decode($report,true);
         return $report;
     }
