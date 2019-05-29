@@ -135,18 +135,36 @@ class BioCatalyst extends AbstractExternalModule
      * Apply the IP filter if set
      */
     function applyIpFilter() {
+
+        $ip_addr = trim($_SERVER['REMOTE_ADDR']);
+        $this->emDebug("Biocatalyst Report API - Incoming IP address: " . $ip_addr);
+
         // APPLY IP FILTER
         $ip_filter = $this->getSystemSetting('ip');
         if (!empty($ip_filter) && !empty($ip_filter[0]) && empty($_POST['magic_skip_cidr'])) {
             $isValid = false;
             foreach ($ip_filter as $filter) {
-                if (self::ipCIDRCheck($filter)) {
+                if (self::ipCIDRCheck($filter, $ip_addr)) {
                     $isValid = true;
                     break;
                 }
             }
             // Exit - invalid IP
-            if (!$isValid) $this->returnError("Invalid source IP");
+            if (!$isValid) {
+
+                // Send email to designated user if IP is invalid
+                $emailTo = $this->getSystemSetting('alert-email');
+                if (!empty($emailTo)) {
+                    $emailFrom = "noreply@stanford.edu";
+                    $subject = "Unauthorized IP trying to access Biocatalyst Reports";
+                    $body = "IP address $ip_addr is trying to access Biocatalyst Reports and is not in the approved IP range.";
+                    $status = REDCap::email($emailTo, $emailFrom, $subject, $body);
+                }
+
+                // Return error
+                $this->emError($subject, $body);
+                $this->returnError("Invalid source IP");
+            }
         }
     }
 
@@ -400,8 +418,7 @@ class BioCatalyst extends AbstractExternalModule
      * @param $CIDR
      * @return bool
      */
-    public static function ipCIDRCheck ($CIDR) {
-        $ip = trim($_SERVER['REMOTE_ADDR']);
+    public static function ipCIDRCheck ($CIDR, $ip) {
 
         // Convert IPV6 localhost into IPV4
         if ($ip == "::1") $ip = "127.0.0.1";

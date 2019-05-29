@@ -50,6 +50,12 @@
       "type": "text"
     },
     {
+      "key": "alert-email",
+      "name": "<b>This is the email address where an alert will be sent when a non white-listed IP is trying to access this endpoint.",
+      "required": true,
+      "type": "text"
+    },
+    {
       "key": "ip_whitelist",
       "name": "IP Whitelist",
       "type": "sub_settings",
