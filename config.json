@@ -63,7 +63,7 @@
       "sub_settings": [
         {
           "key": "ip",
-          "name": "IP address or CIDR notation (e.g. 192.168.123.1/24)",
+          "name": "IP address or CIDR notation (e.g. 192.168.123.1/24). Create a new subsetting for each IP address.",
           "required": false,
           "type": "text"
         }

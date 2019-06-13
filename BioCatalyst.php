@@ -138,9 +138,8 @@ class BioCatalyst extends AbstractExternalModule
         $this->emDebug("Biocatalyst Report API - Incoming IP address: " . $ip_addr);
 
         // APPLY IP FILTER
-        $ip_filter_list = $this->getSystemSetting('ip');
-        $ip_filter = explode(',', $ip_filter_list[0]);
-        if (!empty($ip_filter_list) && !empty($ip_filter[0]) && empty($_POST['magic_skip_cidr'])) {
+        $ip_filter = $this->getSystemSetting('ip');
+        if (!empty($ip_filter) && !empty($ip_filter[0]) && empty($_POST['magic_skip_cidr'])) {
             $isValid = false;
             foreach ($ip_filter as $filter) {
                 if (self::ipCIDRCheck($filter, $ip_addr)) {
@@ -365,9 +364,6 @@ class BioCatalyst extends AbstractExternalModule
     }
 
 
-
-
-
     /**
      * Check to make sure this report belongs to the specified project before retrieving report
      * @return bool
@@ -419,6 +415,7 @@ class BioCatalyst extends AbstractExternalModule
      * @return bool
      */
     public static function ipCIDRCheck ($CIDR, $ip) {
+
 
         // Convert IPV6 localhost into IPV4
         if ($ip == "::1") $ip = "127.0.0.1";
