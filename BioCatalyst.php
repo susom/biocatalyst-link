@@ -138,8 +138,9 @@ class BioCatalyst extends AbstractExternalModule
         $this->emDebug("Biocatalyst Report API - Incoming IP address: " . $ip_addr);
 
         // APPLY IP FILTER
-        $ip_filter = $this->getSystemSetting('ip');
-        if (!empty($ip_filter) && !empty($ip_filter[0]) && empty($_POST['magic_skip_cidr'])) {
+        $ip_filter_list = $this->getSystemSetting('ip');
+        $ip_filter = explode(',', $ip_filter_list[0]);
+        if (!empty($ip_filter_list) && !empty($ip_filter[0]) && empty($_POST['magic_skip_cidr'])) {
             $isValid = false;
             foreach ($ip_filter as $filter) {
                 if (self::ipCIDRCheck($filter, $ip_addr)) {
