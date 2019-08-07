@@ -338,7 +338,8 @@ class BioCatalyst extends AbstractExternalModule
                rrf.field_order,
                rm.element_label as field_label,
                rm.element_type as field_type,
-               rm.element_enum as field_options
+               rm.element_enum as field_options,
+               rm.element_validation_type as field_validation
             from
                  redcap_reports_fields rrf
             join redcap_reports rr on rr.report_id = rrf.report_id
