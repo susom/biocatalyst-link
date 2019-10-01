@@ -1,9 +1,8 @@
 <?php
-namespace Stanford\EmailRelay;
-/** @var \Stanford\EmailRelay\EmailRelay $module */
+namespace Stanford\BioCatalyst;
+/** @var \Stanford\BioCatalyst\BioCatalyst $module */
 
 require APP_PATH_DOCROOT . "ControlCenter/header.php";
-
 
 if (!SUPER_USER) {
     ?>
