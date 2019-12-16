@@ -47,7 +47,8 @@
     {
       "key": "biocatalyst-api-token",
       "name": "<b>This is the specific API token to be used by BioCatalyst.  This is a shared secret and should be kept secure.",
-      "type": "text"
+      "type": "text",
+      "required": true
     },
     {
       "key": "alert-email",

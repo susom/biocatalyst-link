@@ -11,7 +11,24 @@ use ExternalModules\AbstractExternalModule;
 /**
  * Class BioCatalyst
  *
- * If raw data (not labels) is desired, the POST needs to have an entry 'raw_data' set to 1 (true).
+ * This is the main class that is called when the an API request is received for the BioCatalyst module. This class will perform
+ * the following checks:
+ *
+ *  1) Ensure the shared secret in the API call matches the shared secret stored in the System Configuation
+ *  2) Ensure the IP address falls in one of the ranges specified in the System Configuration.
+ *  3) Make sure all required parameters have been supplied
+ *
+ * If all the requirements are satisfied, the request is processed.qq
+ *
+ * The are 4 possible requests:
+ *  1) Retrieve user rights ('data_export_tool', 'reports') for users specified in the request.  All projects that have
+ *      enabled the Access to Reports in the project configuration will be checked.
+ *  2) Retrieve a list of reports for the user specified in the request.  Only one user is allowed at a time. The report ID
+ *      and report name will be retrieved for each project that is enabled when the user has data_export_tool and reports rights.
+ *  3) Retrieve the data for a report specified by the project_id and report_id. The user must have data_export_tool and reports
+ *      user privileges for the specified project/report.
+ *  4) Retrieve meta data on a specified report. A list of meta data will be returned on each report column.  The data returned is
+ *      form_name, field_name, field_order, field_label, field_type, field_options, field_validation.
  *
  * @package Stanford\BioCatalyst
  */
@@ -26,7 +43,7 @@ class BioCatalyst extends AbstractExternalModule
     // Request Parameters
     public $token, $project_id, $request, $users, $report_id, $raw_data;
 
-    static $user_rights_to_export = array('data_export_tool', 'reports'); //, 'data_access_groups');
+    static $user_rights_to_export = array('data_export_tool', 'reports'); // ('data_access_groups');
 
     // Performance
     private $ts_start;
@@ -63,12 +80,14 @@ class BioCatalyst extends AbstractExternalModule
         $this->api_token = $this->getSystemSetting('biocatalyst-api-token');
         if (empty($this->token) || $this->token != $this->api_token) $this->returnError("Invalid API Token");
 
+        // If all checks are satisfied, process the request.
         $this->performRequest();
     }
 
 
     /**
-     * Perform the actual request
+     * All checks were satisfied, perform the actual request.
+     *
      * @return array|bool|false|string
      */
     public function performRequest() {
@@ -88,16 +107,19 @@ class BioCatalyst extends AbstractExternalModule
 
             case "reports":
                 // Validate
+
                 if (empty($this->users)) $this->returnError("Missing required user");
                 if (count($this->users) > 1) $this->returnError("Only one user at a time");
                 if (empty($this->project_id)) $this->returnError("Missing required project_id");
 
                 $user = $this->users[0];
                 if (empty($this->report_id)) {
-                    // GET ALL REPORTS FOR THE USER
+
+                    // Retrieve all reports for this user in all projects who have enabled the Access Reports in the project configuration
                     $result = $this->getProjectReports($this->project_id, $user);
                 } else {
-                    // GET SPECIFIC REPORT FOR USER
+
+                    // Retrieve the specified report given the report_id
                     $result = $this->getReport($this->project_id, $user, $this->report_id);
                 }
                 break;
@@ -110,9 +132,9 @@ class BioCatalyst extends AbstractExternalModule
 
                 if (empty($this->project_id)) $this->returnError("Missing required project_id");
                 if (empty($this->report_id)) $this->returnError("Missing required report id");
+                // Retrieve the report field metadata
                 $result = $this->getReportColumns($this->project_id, $user, $this->report_id);
                break;
-
 
             default:
                 $this->returnError("Invalid Request");
@@ -130,7 +152,10 @@ class BioCatalyst extends AbstractExternalModule
 
 
     /**
-     * Apply the IP filter if set
+     * Apply the IP filter if set. If the IP address is not specified in the system IP ranges, send an email to the
+     * alert email address (also specified in the system configuration).
+     *
+     * @return null
      */
     function applyIpFilter() {
 
@@ -153,7 +178,7 @@ class BioCatalyst extends AbstractExternalModule
                 // Send email to designated user if IP is invalid
                 $emailTo = $this->getSystemSetting('alert-email');
                 if (!empty($emailTo)) {
-                    $emailFrom = "noreply@stanford.edu";
+                    $emailFrom = $emailTo;
                     $subject = "Unauthorized IP trying to access Biocatalyst Reports";
                     $body = "IP address $ip_addr is trying to access Biocatalyst Reports and is not in the approved IP range.";
                     $status = REDCap::email($emailTo, $emailFrom, $subject, $body);
@@ -169,6 +194,7 @@ class BioCatalyst extends AbstractExternalModule
 
     /**
      * Return an error message and exit
+     *
      * @param string    $error_message
      * @param int       $http_code
      */
@@ -183,15 +209,17 @@ class BioCatalyst extends AbstractExternalModule
 
 
     /**
-     * Get all projects that are enabled for BioCatalyst AND
-     * the specified user and return project and user's export rights.
+     * Get all projects that have the Access Reports checkbox selected in the project configuration. For each project
+     * retrieved that the user has access, the user rights are retrieved.
+     *
+     * Return an array of projects and rights (data_export_tool and rights) for the user.
      *
      * @param $user
      * @return array
      */
     function getProjectUserRights($user) {
         $projects = $this->getEnabledProjects();
-        $this->emDebug("Enabled projects: " . $projects . ", user " . $user);
+        //$this->emDebug("Enabled projects: " . json_encode($projects) . ", user " . $user);
 
         $proj_rights = array();
         foreach ($projects as $project) {
@@ -221,9 +249,10 @@ class BioCatalyst extends AbstractExternalModule
 
     /**
      * Verify user rights for data export
+     *
      * @param $project_id
      * @param $user
-     * @return bool
+     * @return bool true/false
      */
     function verifyExportRights($project_id, $user) {
         // Retrieve user rights
@@ -237,9 +266,11 @@ class BioCatalyst extends AbstractExternalModule
     }
 
 
-
     /**
-     * Return array of report_id, report_name, report_fields or other data?
+     * Retrieve the list of reports for the specified project that this user has access to.
+     *
+     * Return array of report_id and report_name for the specified project id.
+     *
      * @param $user
      * @param $project_id
      * @return array
@@ -274,7 +305,12 @@ class BioCatalyst extends AbstractExternalModule
 
 
     /**
-     * Return the ACTUAL report data
+     * Retrieve the actual report data.  Since the API call to this module does not specify a project ID in the URL, we may not
+     * be project context.  First, a check is made to see if we are in project context and if not, add the pid to the URL and call
+     * the service.php which will recall these functions in project context.
+     *
+     * Return an array of report data.
+     *
      * @param $user
      * @param $project_id
      * @param $report_id
@@ -290,6 +326,12 @@ class BioCatalyst extends AbstractExternalModule
         if (! $this->checkReportInProject($project_id, $report_id) ) $this->returnError("NOT AUTHORIZED: Report $report_id is not part of project $project_id");
 
         if (isset($_GET['pid']) && $_GET['pid'] == $project_id) {
+
+            global $user_rights;
+            $user_rights_project = \REDCap::getUserRights($user);
+            $user_rights = $user_rights_project[$user];
+            //$this->emDebug($user_rights);
+
             // We are in project context so we can actually pull the report
             // This is actually a recursive call to this same php page from the server
             if ($this->raw_data) {
@@ -297,7 +339,6 @@ class BioCatalyst extends AbstractExternalModule
             } else {
                 $report = REDCap::getReport($this->report_id, 'json', true);
             }
-            //$report = json_decode($report,true);
         } else {
             // Because exporting a report must be done in project context, we are using a callback to another page to accomplish this
             $url = $this->getUrl('service.php', true, true) . "&pid=$project_id";
@@ -315,7 +356,11 @@ class BioCatalyst extends AbstractExternalModule
 
 
     /**
-     * Gets report metadata or returns
+     * Retrieves report metadata on each field for the specified report_id. The metadata returned are: form_name, field_name, field_order,
+     * field_label, field_type, field_options, field_validation.
+     *
+     * An array of metadata is returned.
+     *
      * @param $project_id
      * @param $user
      * @param $report_id
@@ -366,8 +411,11 @@ class BioCatalyst extends AbstractExternalModule
 
 
     /**
-     * Check to make sure this report belongs to the specified project before retrieving report
-     * @return bool
+     * Check to ensure this report belongs to the specified project before retrieving report
+     *
+     * @param $project_id - project that the report is associated
+     * @param $report_id - specific report of interest
+     * @return bool true | false
      */
     function checkReportInProject($project_id, $report_id)
     {
@@ -387,8 +435,8 @@ class BioCatalyst extends AbstractExternalModule
     }
 
     /**
-     * Return array of projects with all project metadata where biocatalyst is enabled
-     * regardless of user permissions
+     * Retrieve an array of project ids that have the Access Reports checkbox selected in the project configuration.
+     * Return array of projects and project titles where BioCatalyst is enabled.
      *
      * @return array
      */
@@ -413,7 +461,7 @@ class BioCatalyst extends AbstractExternalModule
      *
      * e.g. 192.168.123.1 = 192.168.123.1/30
      * @param $CIDR
-     * @return bool
+     * @return bool true | false
      */
     public static function ipCIDRCheck ($CIDR, $ip) {
 
