@@ -1,8 +1,8 @@
 # BioCatalyst Link
-This module creates a single endpoint that can be used by outside users to access reports 
-from many REDCap projects. The difference between using this External Module and using the REDCap
+This external module creates a single endpoint that can be used by outside users to access reports 
+for many REDCap projects. The difference between using this External Module and using the REDCap
 API call to 'Export Reports', is that this external module handles all data access to REDCap projects 
-so the end user does not need an API token for each project where they want to retrieve data. 
+so the end user does not need an API token for each project that they want to retrieve data from. 
 
 There are 2 security measures which allow control over access to these API requests. 
 
@@ -205,5 +205,4 @@ include: form_name, field_name, field_order, field_label, field_type, field_opti
             ...
         ]
     }
-
 
