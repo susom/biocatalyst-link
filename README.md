@@ -1,14 +1,18 @@
 # BioCatalyst Link
-This external module creates a single endpoint that can be used by outside users to access reports 
-for many REDCap projects. The difference between using this External Module and using the REDCap
-API call to 'Export Reports', is that this external module handles all data access to REDCap projects 
-so the end user does not need an API token for each project that they want to retrieve data from. 
+This external module creates a collection of endpoints that can be used by outside users to access reports 
+for many REDCap projects. The difference between using this External Module report retrieval system
+and using the REDCap API call to 'Export Reports', is that this external module handles all data
+access to REDCap projects so the end user does not need an API token for each project in order to 
+access report data.
 
-There are 2 security measures which allow control over access to these API requests. 
+There are 2 security measures which allow control over access to these API requests:
+
+ 1. There is a secret shared between the two endpoints
+ 2. IP range checks is performed to ensure the request is from a trusted user.
 
 
 ## Setup
-The module must be enabled from the **REDCap Control Center**. 
+To enable this capability, this external module must be enabled from the **REDCap Control Center**. 
 
 #### System Parameters
 ![ExternalModule](images/ExternalModule.png)
@@ -21,47 +25,49 @@ Note: Project level settings to allow access is also required.
 ![ConfigFile](images/ConfigFile.png)
 
 There are only a few setup parameters that are required.  The two required setup parameters are:
-1) Shared Token - token that is configured between the outside user and this External Module so this module will
+1) **Shared Token** - token that is configured between the outside user and this External Module so this module will
 know the requestor is a trusted user.
 
-2) Alert email address - An email will be sent when a request outside the designated IP range is received. If an IP
+2) **Alert email address** - An email will be sent when a request outside the designated IP range is received. If an IP
 range is not entered, no alerts will be sent.  For security reasons, we highly suggest IP ranges be used so
 that tighter controls can be maintained over data stored in REDCap.
 
-The optional data:
-1) Valid IP Ranges - enter as many IP ranges where requests can originate from. This data is **not** required since
+Optional data:
+
+1) **Valid IP Ranges** - enter IP ranges where requests can originate from. This data is **not** required since
 there may be instances where the IP ranges are not known or cannot be determined in advance.
 
-2) Enable module on all projects by default - At Stanford, we enable this module on all projects by default
+2) **Enable module on all projects by default** - At Stanford, we enable this module on all projects by default
 (checked option). Since access to reports from projects need an additional project-level checkbox, there is no
 greater security risk to enable this module on each project. If this checkbox is **NOT** selected, a REDCap Administrator
 will be required to enable this module on each project that chooses to allow this functionality.
 
-3) Make module discoverable by users - If the module is not automatically enabled on each project, you can
+3) **Make module discoverable by users** - If the module is not automatically enabled on each project, you can
 select option so users can find the module but they will still need to request the module to be enabled for
 their project from an Administrator.
 
 #### Project Parameters
-Once the system parameters are set, go to the REDCap project and select the External Module link. 
+Once the system parameters are set, go to the REDCap projects that you want to access reports and select the External Module link. 
 
 ![ProjectExternalModule](images/ProjectExternalModule.png)
 
-Open the Project Config File and select the Enable Stanford Biocatalyst to access reports in this project.
+Open the Project Config File and select the **Enable Stanford Biocatalyst to access reports in this project**.
 
 ![ProjectConfigFile](images/ProjectConfigFile.png)
 
-Setup is now complete.
+Save the configuration and setup is now complete.
+
 
 ## API Calls and Example Syntax
-There are four POST calls that are supported with this module:
+There are four POST calls that are supported with this module. Below are examples of each API endpoint.
 
 ##### User Rights Request
-This API call retrieves user rights 'Data Export Tool' and 'Reports and Report Builder' for each 
+This API call retrieves the user rights values for 'Data Export Tool' and 'Reports and Report Builder' for each 
 of the users in the list for each project enabled with this module. Since both user rights are required
-in order to retrieve data, a check to ensure proper user rights should be performed before requesting data.
+in order to retrieve data, a check to ensure proper user rights access should be performed before requesting data.
     
     Example request:
-    {"token":"<shared token>", "request": "users", "user": "<sunetid1,<sunetid2>"}
+    {"token":"<shared token>", "request": "users", "user": "<sunetid1>,<sunetid2>"}
     
     Example return:
     [
