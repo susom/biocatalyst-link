@@ -72,6 +72,11 @@ class BioCatalyst extends AbstractExternalModule
         $this->project_id = empty($_POST['project_id']) ? ""   : intval($_POST['project_id']);
         $this->report_id  = empty($_POST['report_id'])  ? ""   : intval($_POST['report_id']);
 
+        // sanitize user name inputs
+        if($this->users){
+            $this->users = filter_var_array($this->users, FILTER_SANITIZE_STRING);
+        }    
+
         // Check to see if raw data is desired: ['raw_data'] = 1
         // Default is to return field labels for radios, checkboxes, dropdowns, etc.
         $this->raw_data   = empty($_POST['raw_data']) ? false : (intval($_POST['raw_data']) === 1 ? true : false);
@@ -113,6 +118,10 @@ class BioCatalyst extends AbstractExternalModule
                 if (empty($this->project_id)) $this->returnError("Missing required project_id");
 
                 $user = $this->users[0];
+
+                //RECAP class looks for constant USERID to honor specific user priveleges
+                define("USERID",$user);
+
                 if (empty($this->report_id)) {
 
                     // Retrieve all reports for this user in all projects who have enabled the Access Reports in the project configuration
@@ -327,10 +336,11 @@ class BioCatalyst extends AbstractExternalModule
 
         if (isset($_GET['pid']) && $_GET['pid'] == $project_id) {
 
+            // this $user_rights block , is required for DAGS (DATA ACCESS GROUPS)
             global $user_rights;
             $user_rights_project = \REDCap::getUserRights($user);
             $user_rights = $user_rights_project[$user];
-            //$this->emDebug($user_rights);
+            // $this->emDebug("user rights here", $user_rights);
 
             // We are in project context so we can actually pull the report
             // This is actually a recursive call to this same php page from the server
