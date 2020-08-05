@@ -100,7 +100,7 @@
         },
         {
           "key": "allowed_reports",
-          "name": "Allowed reports",
+          "name": "Allowed report (enter unique report ID nunmber)",
           "type": "text",
           "repeatable": true,
           "branchingLogic": {
