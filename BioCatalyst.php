@@ -312,27 +312,19 @@ class BioCatalyst extends AbstractExternalModule
         // If this person has export and reports rights, find the report ids for this project
         $reports = array();
 
-        // Get all reports for the specified biocatalyst project
-        // Original code (without allow-reports restrictions) below
-        /*
-        $sql = "select rr.report_id, rr.title
-                from redcap_external_modules rem
-                left join redcap_external_module_settings rems on rem.external_module_id = rems.external_module_id
-                left join redcap_reports rr on rems.project_id = rr.project_id
-                where rem.directory_prefix = 'biocatalyst_link'
-                and rems.key = 'biocatalyst-enabled'
-                and rems.value = 'true'
-                and rr.project_id = " . intval($project_id);
-        */
-
+        // Get all reports for the specified biocatalyst project, excluding those which are within projects
+        // configured to restrict the allowed reports, except those in such projects flagged to be allowed.
+        //
+        // NOTE: Projects which do not have a "Restrict reports?" flag set will not permit any reports to export.
+        // This will create a backwards-compatibility problem issue and should be documented and communicated to end users.
         $sql=   "select report_id,title from 
                 (select rr.report_id
                     ,rr.title
                     ,restricted.are_reports_restricted
-                    ,JSON_CONTAINS(bcreports.allowed_reports,CONCAT('"',cast(rr.report_id as varchar(5)),'"'),'$') as is_report_allowed
+                    ,JSON_CONTAINS(bcreports.allowed_reports,CONCAT('\"',cast(rr.report_id as varchar(5)),'\"'),'$') as is_report_allowed
                     ,case 
                         when restricted.are_reports_restricted='no' then '1' 
-                        when restricted.are_reports_restricted='yes' then JSON_CONTAINS(bcreports.allowed_reports,CONCAT('"',cast(rr.report_id as varchar(5)),'"'),'$')  
+                        when restricted.are_reports_restricted='yes' then JSON_CONTAINS(bcreports.allowed_reports,CONCAT('\"',cast(rr.report_id as varchar(5)),'\"'),'$')  
                         else 0 
                     END as do_permit_this_report
                         from redcap_external_modules rem
