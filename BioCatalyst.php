@@ -315,8 +315,8 @@ class BioCatalyst extends AbstractExternalModule
         // Get all reports for the specified biocatalyst project, excluding those which are within projects
         // configured to restrict the allowed reports, except those in such projects flagged to be allowed.
         //
-        // NOTE: Projects which do not have a "Restrict reports?" flag set will not permit any reports to export.
-        // This will create a backwards-compatibility problem issue and should be documented and communicated to end users.
+        // NOTE: Projects which do not have a "Restrict reports?" flag set will permit all reports to export.
+
         $sql=   "select report_id,title from 
                 (select rr.report_id
                     ,rr.title
@@ -325,7 +325,7 @@ class BioCatalyst extends AbstractExternalModule
                     ,case 
                         when restricted.are_reports_restricted='no' then '1' 
                         when restricted.are_reports_restricted='yes' then JSON_CONTAINS(bcreports.allowed_reports,CONCAT('\"',cast(rr.report_id as varchar(5)),'\"'),'$')  
-                        else 0 
+                        else 1 
                     END as do_permit_this_report
                         from redcap_external_modules rem
                         left join redcap_external_module_settings rems on rem.external_module_id = rems.external_module_id

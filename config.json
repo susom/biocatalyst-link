@@ -84,7 +84,7 @@
         },
         {
           "key": "are_reports_restricted",
-          "name": "Should Biocatalyst be limited to access only specific reports?",
+          "name": "Should Biocatalyst be limited to access only specific reports?  If not specified, Biocatalyst will be able to extract ALL reports in this project.",
           "required": true,
           "type": "radio",
           "choices": [
