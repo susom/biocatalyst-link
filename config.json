@@ -4,7 +4,7 @@
     "description": "A module that links redcap projects to Stanford Biocatalyst",
     "versions": [
         {
-            "0.1": "Initial Development Version"
+            "0.2": "Link can be restricted to specific reports in a project"
         }
     ],
     "authors": [
