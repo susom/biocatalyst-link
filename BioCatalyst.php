@@ -312,16 +312,36 @@ class BioCatalyst extends AbstractExternalModule
         // If this person has export and reports rights, find the report ids for this project
         $reports = array();
 
-        // Get all reports for the specified biocatalyst project
-        $sql = "select rr.report_id, rr.title
-                from redcap_external_modules rem
-                left join redcap_external_module_settings rems on rem.external_module_id = rems.external_module_id
-                left join redcap_reports rr on rems.project_id = rr.project_id
-                where rem.directory_prefix = 'biocatalyst_link'
-                and rems.key = 'biocatalyst-enabled'
-                and rems.value = 'true'
-                and rr.project_id = " . intval($project_id);
-        $q = $this->query($sql);
+        // Get all reports for the specified biocatalyst project, excluding those which are within projects
+        // configured to restrict the allowed reports, except those in such projects flagged to be allowed.
+        //
+        // NOTE: Projects which do not have a "Restrict reports?" flag set will permit all reports to export.
+
+        $sql=   "select report_id,title from 
+                (select rr.report_id
+                    ,rr.title
+                    ,restricted.are_reports_restricted
+                    ,JSON_CONTAINS(bcreports.allowed_reports,CONCAT('\"',cast(rr.report_id as char(10)),'\"'),'$') as is_report_allowed
+                    ,case 
+                        when restricted.are_reports_restricted='no' then '1' 
+                        when restricted.are_reports_restricted='yes' then JSON_CONTAINS(bcreports.allowed_reports,CONCAT('\"',cast(rr.report_id as char(10)),'\"'),'$')  
+                        else 1 
+                    END as do_permit_this_report
+                        from redcap_external_modules rem
+                        left join redcap_external_module_settings rems on rem.external_module_id = rems.external_module_id
+                        left join redcap_reports rr on rems.project_id = rr.project_id
+                        LEFT JOIN (select external_module_id,project_id,value as allowed_reports from redcap_external_module_settings where `key`='allowed_reports' and project_id=" . intval($project_id) . ") as bcreports 
+                            ON rems.project_id=bcreports.project_id and rems.external_module_id=bcreports.external_module_id
+                        LEFT JOIN (select external_module_id,project_id,value as are_reports_restricted from redcap_external_module_settings where `key`='are_reports_restricted' and project_id=" . intval($project_id) . ") as restricted 
+                            ON rems.project_id=bcreports.project_id and rems.external_module_id=bcreports.external_module_id
+                        where rem.directory_prefix = 'biocatalyst_link'
+                        and rems.key = 'biocatalyst-enabled'
+                        and rems.value = 'true'
+                        and rr.project_id = " . intval($project_id) . "
+                    ) as report_list
+                where do_permit_this_report='1'";
+
+                $q = $this->query($sql);
         while ($row = db_fetch_assoc($q)) {
             $reports[] = $row;
         }

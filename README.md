@@ -64,6 +64,8 @@ Open the Project Config File and select the **Enable Stanford Biocatalyst to acc
 
 ![ProjectConfigFile](images/ProjectConfigFile.png)
 
+To restrict Biocatalyst to be able to access on administrator-selected reports in the project, select "yes" in response to **Should Biocatalyst be limited to access only specific reports?** and enter `report_id` numbers in the **Allowed report** fields that appear.  Select `+` next to the **Allowed report** field to add more than one permitted report.  (*IMPORTANT: If either the "no" option or no response is selected in response to **Should Biocatalyst be limited to access only specific reports?**, all reports in this project will be available to Biocatalyst.*)
+
 Save the configuration.  This project's reports are now accessible from the system-level API endpoints.
 
 ## API Calls and Example Syntax

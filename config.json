@@ -1,94 +1,112 @@
 {
-  "name": "Stanford Biocatalyst Link",
-
-  "namespace":"Stanford\\BioCatalyst",
-
-  "description": "A module that links redcap projects to Stanford Biocatalyst",
-
-  "versions": [
-    { "0.1": "Initial Development Version" }
-  ],
-
-  "authors": [
-    {
-      "name": "Andy Martin",
-      "email": "andy123@stanford.edu",
-      "institution": "Stanford University"
-    },
-    {
-      "name": "LeeAnn Yasukawa",
-      "email": "yasukawa@stanford.edu",
-      "institution": "Stanford University"
-    }
-  ],
-
-  "permissions": [
-    "redcap_module_project_enable"
-  ],
-
-  "no-auth-pages": [
-    "service",
-    "BioCatalystReports"
-  ],
-
-  "links": {
-    "control-center": [
-      {
-        "name": "BioCatalyst Instructions",
-        "icon": "gear",
-        "url": "instructions.php"
-      }
-    ],
-    "project": [
-    ]
-  },
-
-  "system-settings": [
-    {
-      "key": "biocatalyst-api-token",
-      "name": "<b>This is the specific API token to be used by BioCatalyst.  This is a shared secret and should be kept secure.",
-      "type": "text",
-      "required": true
-    },
-    {
-      "key": "alert-email",
-      "name": "<b>This is the email address where an alert will be sent when a non white-listed IP is trying to access this endpoint.",
-      "required": true,
-      "type": "text"
-    },
-    {
-      "key": "ip_whitelist",
-      "name": "IP Whitelist",
-      "type": "sub_settings",
-      "repeatable": true,
-      "sub_settings": [
+    "name": "Stanford Biocatalyst Link",
+    "namespace": "Stanford\\BioCatalyst",
+    "description": "A module that links redcap projects to Stanford Biocatalyst",
+    "versions": [
         {
-          "key": "ip",
-          "name": "IP address or CIDR notation (e.g. 192.168.123.1/24). Create a new subsetting for each IP address.",
-          "required": false,
-          "type": "text"
+            "0.2": "Link can be restricted to specific reports in a project"
         }
-      ]
+    ],
+    "authors": [
+        {
+            "name": "Andy Martin",
+            "email": "andy123@stanford.edu",
+            "institution": "Stanford University"
+        },
+        {
+            "name": "LeeAnn Yasukawa",
+            "email": "yasukawa@stanford.edu",
+            "institution": "Stanford University"
+        }
+    ],
+    "permissions": [
+        "redcap_module_project_enable"
+    ],
+    "no-auth-pages": [
+        "service",
+        "BioCatalystReports"
+    ],
+    "links": {
+        "control-center": [
+            {
+                "name": "BioCatalyst Instructions",
+                "icon": "gear",
+                "url": "instructions.php"
+            }
+        ],
+        "project": []
     },
-    {
-      "key": "enable-system-debug-logging",
-      "name": "<b>Enable Debug Logging (system-wide)</b>",
-      "required": false,
-      "type": "checkbox"
-    }
-  ],
-
-  "project-settings": [
-    {
-      "key": "biocatalyst-enabled",
-      "name": "<b>Enable Stanford Biocatalyst to access reports in this project</b><br/>Only a project admin can enable/disable this feature for a project.  Once enabled, any REDCap user of this project with Data Export rights will be able to access this project's reports from the BioCatalyst application.",
-      "type": "checkbox"
-    },
-    {
-      "key": "enable-project-debug-logging",
-      "name": "<b>Enable Debug Logging</b>",
-      "required": false,
-      "type": "checkbox"
-    }
-  ]
+    "system-settings": [
+        {
+            "key": "biocatalyst-api-token",
+            "name": "<b>This is the specific API token to be used by BioCatalyst.  This is a shared secret and should be kept secure.",
+            "type": "text",
+            "required": true
+        },
+        {
+            "key": "alert-email",
+            "name": "<b>This is the email address where an alert will be sent when a non white-listed IP is trying to access this endpoint.",
+            "required": true,
+            "type": "text"
+        },
+        {
+            "key": "ip_whitelist",
+            "name": "IP Whitelist",
+            "type": "sub_settings",
+            "repeatable": true,
+            "sub_settings": [
+                {
+                    "key": "ip",
+                    "name": "IP address or CIDR notation (e.g. 192.168.123.1/24). Create a new subsetting for each IP address.",
+                    "required": false,
+                    "type": "text"
+                }
+            ]
+        },
+        {
+            "key": "enable-system-debug-logging",
+            "name": "<b>Enable Debug Logging (system-wide)</b>",
+            "required": false,
+            "type": "checkbox"
+        }
+    ],
+    "project-settings": [
+        {
+            "key": "biocatalyst-enabled",
+            "name": "<b>Enable Stanford Biocatalyst to access reports in this project</b><br/>Only a project admin can enable/disable this feature for a project.  Once enabled, any REDCap user of this project with Data Export rights will be able to access this project's reports from the BioCatalyst application.",
+            "type": "checkbox"
+        },
+        {
+            "key": "enable-project-debug-logging",
+            "name": "<b>Enable Debug Logging</b>",
+            "required": false,
+            "type": "checkbox"
+        },
+        {
+          "key": "are_reports_restricted",
+          "name": "Should Biocatalyst be limited to access only specific reports?  If not specified, Biocatalyst will be able to extract ALL reports in this project.",
+          "required": true,
+          "type": "radio",
+          "choices": [
+            {
+              "value":"yes",
+              "name":"Yes"
+            },
+            {
+              "value":"no",
+              "name":"No"
+            }
+          ]
+        },
+        {
+          "key": "allowed_reports",
+          "name": "Allowed report (enter unique report ID nunmber)",
+          "type": "text",
+          "repeatable": true,
+          "branchingLogic": {
+            "field": "are_reports_restricted",
+            "value": "yes"
+          }
+        }
+     ]
 }
