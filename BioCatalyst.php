@@ -321,10 +321,10 @@ class BioCatalyst extends AbstractExternalModule
                 (select rr.report_id
                     ,rr.title
                     ,restricted.are_reports_restricted
-                    ,JSON_CONTAINS(bcreports.allowed_reports,CONCAT('\"',cast(rr.report_id as varchar(5)),'\"'),'$') as is_report_allowed
+                    ,JSON_CONTAINS(bcreports.allowed_reports,CONCAT('\"',cast(rr.report_id as char(10)),'\"'),'$') as is_report_allowed
                     ,case 
                         when restricted.are_reports_restricted='no' then '1' 
-                        when restricted.are_reports_restricted='yes' then JSON_CONTAINS(bcreports.allowed_reports,CONCAT('\"',cast(rr.report_id as varchar(5)),'\"'),'$')  
+                        when restricted.are_reports_restricted='yes' then JSON_CONTAINS(bcreports.allowed_reports,CONCAT('\"',cast(rr.report_id as char(10)),'\"'),'$')  
                         else 1 
                     END as do_permit_this_report
                         from redcap_external_modules rem
