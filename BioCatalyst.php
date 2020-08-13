@@ -296,6 +296,61 @@ class BioCatalyst extends AbstractExternalModule
 
 
     /**
+     * Verify user rights for data export
+     *
+     * @param $project_id
+     * @param $report_id
+     * @return bool true/false
+     */
+    function verifyReportAllowed($project_id, $report_id) {
+        // Retrieve user rights
+        $user_rights = UserRights::getPrivileges($project_id,  $user);
+
+        // Check that this report is allowed for the specified Biocatalyst project, excluding those which are within projects
+        // configured to restrict the allowed reports, except those in such projects flagged to be allowed.
+        //
+        // NOTE: Projects which do not have a "Restrict reports?" flag set will permit all reports to export.
+
+        $sql=   "select do_permit_this_report  from 
+                (select rr.report_id
+                    ,rr.title
+                    ,restricted.are_reports_restricted
+                    ,JSON_CONTAINS(bcreports.allowed_reports,CONCAT('\"',cast(rr.report_id as char(10)),'\"'),'$') as is_report_allowed
+                    ,case 
+                        when restricted.are_reports_restricted='no' then '1' 
+                        when restricted.are_reports_restricted='yes' then JSON_CONTAINS(bcreports.allowed_reports,CONCAT('\"',cast(rr.report_id as char(10)),'\"'),'$')  
+                        else 1 
+                    END as do_permit_this_report
+                        from redcap_external_modules rem
+                        left join redcap_external_module_settings rems on rem.external_module_id = rems.external_module_id
+                        left join redcap_reports rr on rems.project_id = rr.project_id
+                        LEFT JOIN (select external_module_id,project_id,value as allowed_reports from redcap_external_module_settings where `key`='allowed_reports' and project_id=" . intval($project_id) . ") as bcreports 
+                            ON rems.project_id=bcreports.project_id and rems.external_module_id=bcreports.external_module_id
+                        LEFT JOIN (select external_module_id,project_id,value as are_reports_restricted from redcap_external_module_settings where `key`='are_reports_restricted' and project_id=" . intval($project_id) . ") as restricted 
+                            ON rems.project_id=bcreports.project_id and rems.external_module_id=bcreports.external_module_id
+                        where rem.directory_prefix = 'biocatalyst_link'
+                        and rems.key = 'biocatalyst-enabled'
+                        and rems.value = 'true'
+                        and rr.project_id = " . intval($project_id) . "
+                        and rr.report_id = " . intval($report_id) . "
+                    ) as report_list";
+
+                $q = $this->query($sql);
+        while ($row = db_fetch_assoc($q)) {
+            $allowed_reports[] = $row;
+        }
+
+        // Error if insufficient permissions
+
+        
+        if (count($allowed_reports) == 0 || in_array(0,$allowed_reports)) {
+            return false;
+        }
+        return true;
+    }
+
+
+    /**
      * Retrieve the list of reports for the specified project that this user has access to.
      *
      * Return array of report_id and report_name for the specified project id.
@@ -369,8 +424,11 @@ class BioCatalyst extends AbstractExternalModule
     function getReport($project_id, $user, $report_id) {
 
         // Verify permissions
-        if (! $this->verifyExportRights($project_id, $user) ) $this->returnError("NOT AUTHORIZED: User $user trying to get report $report_id for project $project_id");
+        if (! $this->verifyExportRights($project_id, $user) ) $this->returnError("NOT AUTHORIZED: User $user trying to get report $report_id for project $project_id. User does not have access or export rights for this report.");
 
+        // Check to make sure this report is allowed for export
+        if (! $this->verifyReportAllowed($project_id, $report_id) ) $this->returnError("NOT AUTHORIZED: User $user trying to get report $report_id for project $project_id. Report is not configured to be permitted for export.");
+        
         // Check to make sure this report belongs to this project
         if (! $this->checkReportInProject($project_id, $report_id) ) $this->returnError("NOT AUTHORIZED: Report $report_id is not part of project $project_id");
 
@@ -419,7 +477,10 @@ class BioCatalyst extends AbstractExternalModule
     function getReportColumns($project_id, $user, $report_id) {
 
         // Verify permissions
-        if (! $this->verifyExportRights($project_id, $user) ) $this->returnError("NOT AUTHORIZED: User $user trying to get report columns for report $report_id for project $project_id");
+        if (! $this->verifyExportRights($project_id, $user) ) $this->returnError("NOT AUTHORIZED: User $user trying to get report columns for report $report_id for project $project_id. User does not have access or export rights for this report.");
+
+        // Check to make sure this report is allowed for export
+        if (! $this->verifyReportAllowed($project_id, $report_id) ) $this->returnError("NOT AUTHORIZED: User $user trying to get report $report_id for project $project_id. Report is not configured to be permitted for export.");
 
         // Check to make sure this report belongs to this project
         if (! $this->checkReportInProject($project_id, $report_id) ) $this->returnError("NOT AUTHORIZED: Report $report_id is not part of project $project_id");
