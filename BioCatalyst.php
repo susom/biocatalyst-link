@@ -333,7 +333,8 @@ class BioCatalyst extends AbstractExternalModule
                         and rems.value = 'true'
                         and rr.project_id = " . intval($project_id) . "
                         and rr.report_id = " . intval($report_id) . "
-                    ) as report_list";
+                    ) as report_list
+                WHERE do_permit_this_report='1'";
 
                 $q = $this->query($sql);
         while ($row = db_fetch_assoc($q)) {
@@ -343,7 +344,7 @@ class BioCatalyst extends AbstractExternalModule
         // Error if insufficient permissions
 
         
-        if (count($allowed_reports) <> 1 || $allowed_reports[0]<>1) {
+        if (count($allowed_reports) < 1) {
             return false;
         }
         return true;
