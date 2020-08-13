@@ -343,7 +343,7 @@ class BioCatalyst extends AbstractExternalModule
         // Error if insufficient permissions
 
         
-        if (count($allowed_reports) == 0 || !! in_array(0,$allowed_reports)) {
+        if (count($allowed_reports) <> 1 || in_array(1,$allowed_reports)) {
             return false;
         }
         return true;
